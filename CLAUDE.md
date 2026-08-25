@@ -1,6 +1,6 @@
 # Azoth
 
-> Powered by [Azoth](https://github.com/your-org/azoth) — The Universal Agentic Toolkit
+> Powered by [Azoth](https://github.com/your-org/azoth) — a governed agentic engineering toolkit for inspectable AI-assisted software delivery
 
 ---
 
@@ -8,7 +8,7 @@
 
 - **Name**: Azoth
 - **Language**: Python
-- **Description**: The Universal Agentic Toolkit — agentic development discipline for AI-assisted projects.
+- **Description**: An inspectable toolkit for governed AI-assisted software delivery.
 
 ## Boot Sequence
 
@@ -22,7 +22,7 @@ This project uses the Azoth bootloader. Every session:
 Run `/start` at the beginning of each session for a visual project snapshot
 and routing options (next task, intake, promote, eval, or custom goal).
 
-**Claude Code:** `hooks.SessionStart` runs `.claude/hooks/session_start_welcome.py`, which invokes `welcome.py --plain` and mirrors stdout to `.azoth/session-orientation.txt`. Default: use injected context (efficient). **Read** and paste the file verbatim only when the user asks for the full plain snapshot. **Bash** to run `welcome.py` for the **Rich** UI is allowed — the IDE may collapse output; expand for the full dashboard. **Cursor:** run `python3 scripts/welcome.py` in the **integrated terminal** for the full Rich layout; **Bash** in chat works with expand. **Full policy:** match `CLAUDE.md` **core rules 8–9** in this repo (or root-azoth scaffold).
+**Claude Code:** `hooks.SessionStart` runs `.claude/hooks/session_start_welcome.py`, which invokes `welcome.py --plain` and mirrors stdout to `.azoth/session-orientation.txt`. Default: use injected context (efficient). **Read** and paste the file verbatim only when the user asks for the full plain snapshot. **Bash** to run `welcome.py` for the **Rich** UI is allowed — the IDE may collapse output; expand for the full dashboard. **Cursor:** run `python3 scripts/welcome.py` in the **integrated terminal** for the full Rich layout; **Bash** in chat works with expand. **Full policy:** match `CLAUDE.md` **core rules 8–9** in the installed toolkit.
 
 ## Project Routing
 
@@ -52,7 +52,7 @@ and routing options (next task, intake, promote, eval, or custom goal).
 
 ## Installed Azoth Components
 
-- Kernel: v0.1.4.34
+- Kernel: v0.3.0-rc.1
 - Skills: see skills/
 - Agents: see agents/
 - Pipeline presets: see pipelines/

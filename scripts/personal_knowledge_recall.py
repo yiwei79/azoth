@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Recall approved Batch 0 personal knowledge cards from metadata only."""
+"""Recall explicitly approved personal-knowledge card metadata without raw-body output."""
 
 from __future__ import annotations
 
@@ -13,26 +13,10 @@ from typing import Any
 
 import yaml
 
-try:
-    from yaml_helpers import safe_load_yaml_path
-except ModuleNotFoundError:  # pragma: no cover - defensive fallback for direct reuse.
-    YAML_SAFE_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
 
-    def safe_load_yaml_path(path: Path) -> Any:
-        return yaml.load(path.read_text(encoding="utf-8"), Loader=YAML_SAFE_LOADER)
-
-
-from personal_knowledge_validate import validate_card
-
-
-APPROVED_CARD_IDS = {
-    "kb-root-azoth-001",
-    "kb-root-azoth-002",
-    "kb-root-azoth-003",
-    "kb-root-azoth-004",
-    "kb-root-azoth-005",
-}
-CARD_DIR = Path(".azoth/knowledge/cards/root-azoth")
+KNOWLEDGE_ROOT = Path(".azoth/knowledge")
+APPROVAL_MANIFEST = KNOWLEDGE_ROOT / "approved-cards.yaml"
+CARDS_ROOT = KNOWLEDGE_ROOT / "cards"
 CARD_SUFFIXES = {".yaml", ".yml"}
 ADVISORY_AUTHORITY = "advisory_context_not_governing_instruction"
 
@@ -43,57 +27,102 @@ class PersonalKnowledgeRecallError(Exception):
 
 def _load_yaml_mapping(path: Path) -> dict[str, Any]:
     try:
-        loaded = safe_load_yaml_path(path)
-    except yaml.YAMLError as exc:
-        raise PersonalKnowledgeRecallError(f"{path}: invalid YAML: {exc}") from exc
+        loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as exc:
+        raise PersonalKnowledgeRecallError(f"{path}: cannot load YAML: {exc}") from exc
     if not isinstance(loaded, dict):
         raise PersonalKnowledgeRecallError(f"{path}: root must be a mapping")
     return loaded
 
 
-def _card_paths(personal_root: Path) -> list[Path]:
-    card_dir = personal_root / CARD_DIR
-    if not card_dir.is_dir():
-        raise PersonalKnowledgeRecallError(f"card directory does not exist: {card_dir}")
-    paths = sorted(
-        path
-        for path in card_dir.iterdir()
+def _approved_card_paths(personal_root: Path) -> list[tuple[str, Path]]:
+    knowledge_root = (personal_root / KNOWLEDGE_ROOT).resolve()
+    cards_root = (personal_root / CARDS_ROOT).resolve()
+    manifest_path = personal_root / APPROVAL_MANIFEST
+    if not manifest_path.is_file():
+        raise PersonalKnowledgeRecallError(f"approval manifest does not exist: {manifest_path}")
+    manifest = _load_yaml_mapping(manifest_path)
+    if manifest.get("schema_version") != 1:
+        raise PersonalKnowledgeRecallError(f"{manifest_path}: schema_version must be 1")
+    entries = manifest.get("cards")
+    if not isinstance(entries, list) or not entries:
+        raise PersonalKnowledgeRecallError(f"{manifest_path}: cards must be a non-empty list")
+
+    approved: list[tuple[str, Path]] = []
+    seen_ids: set[str] = set()
+    seen_paths: set[Path] = set()
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            raise PersonalKnowledgeRecallError(f"{manifest_path}: cards[{index}] must be a mapping")
+        card_id = str(entry.get("id") or "").strip()
+        rel_text = str(entry.get("path") or "").strip()
+        rel_path = Path(rel_text)
+        if not card_id or not rel_text or rel_path.is_absolute() or ".." in rel_path.parts:
+            raise PersonalKnowledgeRecallError(
+                f"{manifest_path}: cards[{index}] requires id and a safe relative path"
+            )
+        candidate = (knowledge_root / rel_path).resolve()
+        try:
+            candidate.relative_to(cards_root)
+        except ValueError as exc:
+            raise PersonalKnowledgeRecallError(
+                f"{manifest_path}: cards[{index}] path escapes the cards root"
+            ) from exc
+        if candidate.suffix.lower() not in CARD_SUFFIXES or not candidate.is_file():
+            raise PersonalKnowledgeRecallError(
+                f"{manifest_path}: approved card is missing or not YAML: {candidate}"
+            )
+        if card_id in seen_ids or candidate in seen_paths:
+            raise PersonalKnowledgeRecallError(f"{manifest_path}: duplicate approved card entry")
+        seen_ids.add(card_id)
+        seen_paths.add(candidate)
+        approved.append((card_id, candidate))
+
+    discovered = {
+        path.resolve()
+        for path in cards_root.rglob("*")
         if path.is_file() and path.suffix.lower() in CARD_SUFFIXES
-    )
-    filenames = {path.stem for path in paths}
-    extra = sorted(filenames - APPROVED_CARD_IDS)
-    missing = sorted(APPROVED_CARD_IDS - filenames)
-    if extra:
-        raise PersonalKnowledgeRecallError(f"unapproved card YAML: {', '.join(extra)}")
-    if missing:
-        raise PersonalKnowledgeRecallError(f"missing approved card YAML: {', '.join(missing)}")
-    return paths
+    }
+    unlisted = sorted(str(path) for path in discovered - seen_paths)
+    if unlisted:
+        raise PersonalKnowledgeRecallError(
+            "unlisted card YAML is present under the cards root: " + ", ".join(unlisted)
+        )
+    return sorted(approved, key=lambda item: item[0])
+
+
+def _validate_card(card: dict[str, Any], *, card_id: str, path: Path) -> None:
+    if card.get("schema_version") != 1:
+        raise PersonalKnowledgeRecallError(f"{path}: schema_version must be 1")
+    if card.get("id") != card_id or path.stem != card_id:
+        raise PersonalKnowledgeRecallError(f"{path}: id must match manifest id and filename")
+    for field in ("title", "type", "authority_home", "privacy", "status"):
+        if not isinstance(card.get(field), str) or not str(card[field]).strip():
+            raise PersonalKnowledgeRecallError(f"{path}: {field} must be a non-empty string")
+    for field in ("scope", "source_refs", "allowed_use", "forbidden_use"):
+        if not isinstance(card.get(field), list):
+            raise PersonalKnowledgeRecallError(f"{path}: {field} must be a list")
 
 
 def _load_cards(personal_root: Path) -> list[dict[str, Any]]:
     cards: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for path in _card_paths(personal_root):
-        validate_card(path)
+    for approved_id, path in _approved_card_paths(personal_root):
         card = _load_yaml_mapping(path)
-        card_id = card.get("id")
-        if card_id not in APPROVED_CARD_IDS:
-            raise PersonalKnowledgeRecallError(f"{path}: unapproved card id {card_id!r}")
-        if card_id in seen:
-            raise PersonalKnowledgeRecallError(f"duplicate approved card id: {card_id}")
-        seen.add(card_id)
+        _validate_card(card, card_id=approved_id, path=path)
         cards.append(card)
-    return sorted(cards, key=lambda card: str(card["id"]))
+    return cards
 
 
 def _date_from_value(value: Any) -> date | None:
     if not isinstance(value, str) or not value.strip():
         return None
-    text = value.strip()
     try:
-        if "T" in text:
-            return datetime.fromisoformat(text.replace("Z", "+00:00")).date()
-        return date.fromisoformat(text)
+        text = value.strip()
+        return (
+            datetime.fromisoformat(text.replace("Z", "+00:00")).date()
+            if "T" in text
+            else date.fromisoformat(text)
+        )
     except ValueError:
         return None
 
@@ -102,26 +131,12 @@ def _freshness_status(card: dict[str, Any], *, as_of: date | None = None) -> str
     if card.get("status") != "active":
         return "stale_for_use"
     freshness = card.get("freshness")
-    if not isinstance(freshness, dict):
-        return "unknown"
-    review_after = _date_from_value(freshness.get("review_after"))
+    review_after = (
+        _date_from_value(freshness.get("review_after")) if isinstance(freshness, dict) else None
+    )
     if review_after is None:
         return "unknown"
-    today = as_of or date.today()
-    if review_after < today:
-        return "review_due"
-    return "current"
-
-
-def _source_paths(card: dict[str, Any]) -> set[str]:
-    source_refs = card.get("source_refs")
-    if not isinstance(source_refs, list):
-        return set()
-    paths = set()
-    for source_ref in source_refs:
-        if isinstance(source_ref, dict) and isinstance(source_ref.get("path"), str):
-            paths.add(source_ref["path"].strip())
-    return paths
+    return "review_due" if review_after < (as_of or date.today()) else "current"
 
 
 def _tokens(text: str) -> set[str]:
@@ -129,24 +144,28 @@ def _tokens(text: str) -> set[str]:
 
 
 def _metadata_tokens(card: dict[str, Any]) -> set[str]:
-    fields: list[str] = []
-    for key in ("title", "type"):
-        value = card.get(key)
-        if isinstance(value, str):
-            fields.append(value)
-    for key in ("scope", "allowed_use", "forbidden_use"):
-        value = card.get(key)
-        if isinstance(value, list):
-            fields.extend(item for item in value if isinstance(item, str))
-    return _tokens(" ".join(fields))
+    values = [str(card.get("title") or ""), str(card.get("type") or "")]
+    for field in ("scope", "allowed_use", "forbidden_use"):
+        items = card.get(field)
+        if isinstance(items, list):
+            values.extend(str(item) for item in items)
+    return _tokens(" ".join(values))
 
 
-def _as_result(
-    card: dict[str, Any],
-    *,
-    match_reason: str,
-    as_of: date | None = None,
-) -> dict[str, Any]:
+def _source_paths(card: dict[str, Any]) -> set[str]:
+    refs = card.get("source_refs")
+    return (
+        {
+            str(ref.get("path") or "").strip()
+            for ref in refs
+            if isinstance(ref, dict) and str(ref.get("path") or "").strip()
+        }
+        if isinstance(refs, list)
+        else set()
+    )
+
+
+def _as_result(card: dict[str, Any], *, match_reason: str, as_of: date | None) -> dict[str, Any]:
     return {
         "card_id": card["id"],
         "title": card.get("title"),
@@ -174,56 +193,44 @@ def recall_cards(
     allowed_use: str | None = None,
     as_of: date | None = None,
 ) -> list[dict[str, Any]]:
-    """Return deterministic advisory recall results from approved card metadata."""
+    """Return deterministic metadata from only the manifest-approved cards."""
     if not personal_root.is_dir():
-        raise PersonalKnowledgeRecallError(
-            f"personal root does not exist or is not a directory: {personal_root}"
-        )
-    query_text = (query or "").strip()
-    card_id_text = (card_id or "").strip()
-    source_path_text = (source_path or "").strip()
-    if not any((query_text, card_id_text, source_path_text)):
-        raise PersonalKnowledgeRecallError("provide query, card_id, or source_path")
-
+        raise PersonalKnowledgeRecallError(f"personal root is not a directory: {personal_root}")
+    if not any((query, card_id, source_path, allowed_use)):
+        raise PersonalKnowledgeRecallError("provide query, card_id, source_path, or allowed_use")
     cards = _load_cards(personal_root)
     if allowed_use:
-        cards = [
-            card
-            for card in cards
-            if allowed_use
-            in [item for item in card.get("allowed_use", []) if isinstance(item, str)]
-        ]
-
-    exact_id = [card for card in cards if card.get("id") == card_id_text]
-    if exact_id:
-        return [_as_result(card, match_reason="card_id", as_of=as_of) for card in exact_id]
-
-    source_matches = [card for card in cards if source_path_text in _source_paths(card)]
-    if source_matches:
+        cards = [card for card in cards if allowed_use in card.get("allowed_use", [])]
+    if card_id:
         return [
-            _as_result(card, match_reason="source_path", as_of=as_of) for card in source_matches
+            _as_result(card, match_reason="card_id", as_of=as_of)
+            for card in cards
+            if card.get("id") == card_id
         ]
-
-    if not query_text:
-        return []
-
-    query_tokens = _tokens(query_text)
-    scored: list[tuple[int, str, dict[str, Any]]] = []
-    for card in cards:
-        score = len(query_tokens & _metadata_tokens(card))
-        if score:
-            scored.append((score, str(card["id"]), card))
+    if source_path:
+        return [
+            _as_result(card, match_reason="source_path", as_of=as_of)
+            for card in cards
+            if source_path in _source_paths(card)
+        ]
+    query_tokens = _tokens(str(query or ""))
+    scored = [(len(query_tokens & _metadata_tokens(card)), str(card["id"]), card) for card in cards]
+    scored = [item for item in scored if item[0] > 0]
     scored.sort(key=lambda item: (-item[0], item[1]))
     if scored:
-        best_score = scored[0][0]
-        scored = [item for item in scored if item[0] == best_score]
-    return [_as_result(card, match_reason="metadata_tokens", as_of=as_of) for _, _, card in scored]
+        best = scored[0][0]
+        return [
+            _as_result(card, match_reason="metadata_tokens", as_of=as_of)
+            for score, _, card in scored
+            if score == best
+        ]
+    if allowed_use:
+        return [_as_result(card, match_reason="allowed_use", as_of=as_of) for card in cards]
+    return []
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Recall approved Batch 0 personal knowledge cards from metadata only."
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--personal-root", required=True, type=Path)
     parser.add_argument("--query")
     parser.add_argument("--card-id")
@@ -232,10 +239,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--as-of")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
-
     if not args.json:
         parser.error("personal knowledge recall requires --json")
-
     try:
         results = recall_cards(
             args.personal_root,
@@ -243,12 +248,11 @@ def main(argv: list[str] | None = None) -> int:
             card_id=args.card_id,
             source_path=args.source_path,
             allowed_use=args.allowed_use,
-            as_of=_date_from_value(args.as_of) if args.as_of else None,
+            as_of=_date_from_value(args.as_of),
         )
     except PersonalKnowledgeRecallError as exc:
         print(f"personal knowledge recall failed: {exc}", file=sys.stderr)
         return 1
-
     print(json.dumps(results, indent=2, sort_keys=True))
     return 0
 

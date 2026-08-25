@@ -1,8 +1,8 @@
 ---
 name: autonomous-auto
 description: |
-  Autonomous Auto Mode: a standalone adaptive pipeline for branch-local Azoth
-  self-development with async operator alignment packets, explicit approval_basis
+  Autonomous Auto Mode: a standalone adaptive pipeline for branch-local consumer-project
+  delivery with async operator alignment packets, explicit approval_basis
   fields, bounded replay, and normal scope/pipeline gate enforcement.
 ---
 
@@ -10,13 +10,13 @@ description: |
 
 ## Overview
 
-This skill defines the canonical branch-local autonomous self-development mode
+This skill defines the canonical branch-local autonomous project-delivery mode
 for Azoth. It keeps autonomous campaigns auditable through vision declarations,
 async alignment handling, bounded replay, and normal gate enforcement.
 
 ## Autonomous Auto Mode
 
-`autonomous-auto` is a standalone mode for fully autonomous Azoth self-development.
+`autonomous-auto` is a standalone mode for bounded autonomous project delivery.
 It is not a submode of `dynamic-full-auto`. Use it when the operator grants a
 branch-local autonomy budget for Azoth to refine initiatives, hydrate tasks, implement,
 evaluate, replay bounded fixes, and close out while human alignment can arrive
@@ -24,8 +24,8 @@ asynchronously.
 
 ## When to Use
 
-Use `autonomous-auto` when Azoth is developing Azoth itself under a branch-local
-autonomy budget, especially for initiative refinement, task hydration, governed
+Use `autonomous-auto` when a consumer project is evolving under a branch-local autonomy
+budget, especially for initiative refinement, task hydration, governed
 implementation, bounded replay, self-heal routing, and campaign closeout where the
 operator wants async alignment packets instead of sequential human gates.
 
@@ -39,7 +39,23 @@ to paste a large structured prompt. Instead:
 2. Offer a concise campaign vision declaration with objective, selected seed or initiative,
    allowed action classes, budget, stop conditions, and protected boundaries.
 3. Discuss scope with the operator in the same session until the campaign vision is clear.
-4. Start autonomous self-development only after the operator approves the declaration.
+4. Start autonomous project delivery only after the operator approves the declaration.
+
+For known campaign shapes, prefer a native campaign preset before asking for
+bespoke declaration prose. Presets live under `.azoth/campaign-presets/` and
+compile to existing autonomous-auto init inputs; they are not route authority.
+Use `scripts/autonomous_campaign_presets.py <preset-id> --operator-goal <goal>`
+to render a draft approval packet. The initial PM-orchestrated architecture
+discovery preset is:
+
+```bash
+python3 scripts/autonomous_campaign_presets.py native-pm-campaign-architecture-discovery --operator-goal "<operator goal>"
+```
+
+The compiler output may seed `--vision-declaration-json`, `--allowed-action`,
+and `--queue-json` after human approval. Existing `autonomous_loop.py`
+strategy-preflight, lifecycle-route, scope gates, write claims, run-ledger
+evidence, and protected stop conditions remain authoritative.
 
 After approval, persist the locked declaration in loop state under `vision.declaration`
 and use it as the campaign's success anchor. Routine branch-local approvals may then be
@@ -89,10 +105,12 @@ Autonomous auto must still deliver with pipeline discipline. At Checkpoint Γ, r
 Stage 0 classification and `skills/auto-router/SKILL.md` composition used by `/auto`, then
 adapt the stage list to the actual scope:
 
-- When autonomous-mode behavior is in scope, read
-  `.azoth/roadmap-specs/v0.2.0/AUTONOMOUS-AUTO-UX-EXPERIENCE.md` before architect or
-  evaluator work. Architect outputs must include `UX Anchor Fit`; evaluator outputs must
-  include `UX Anchor Scorecard` using the anchor's Green/Yellow/Red bands.
+- When autonomous-mode behavior is in scope, resolve the active milestone from
+  `.azoth/roadmap.yaml`. A project may optionally provide an
+  `AUTONOMOUS-AUTO-UX-EXPERIENCE.md` file in that milestone's roadmap-spec directory.
+  When present, architect outputs include `UX Anchor Fit` and evaluator outputs include
+  `UX Anchor Scorecard`. When absent, the approved vision declaration is the success
+  anchor; do not invent or require a toolkit-private file.
 - Use research/explore waves before hydration when knowledge is incomplete.
 - Hydrate planning artifacts only when readiness and `approval_basis` are explicit.
 - Open implementation as a separate delivery stage when the hydrated task is ready.
@@ -101,10 +119,18 @@ adapt the stage list to the actual scope:
   orchestrator still uses architect judgment, but may not silently replace required
   context-isolation, review-independence, context-budget, or protected gates with inline work.
 - Each child scope starts with an active `.azoth/run-ledger.local.yaml` run entry. Delegated
-  stages must record `stage_spawns` and `stage_summaries`; inline exceptions must be explicit
-  and justified against the `delegation_plan.inline_policy`.
+  stages must record `stage_spawns` and `stage_summaries`. Inline exceptions are audit-only
+  evidence for a blocked or invalidated stage; they do not satisfy autonomous-auto child
+  completion for `autonomous_auto_*` stages. If real subagent spawning is unavailable after
+  the operator requires orchestration, stop or reroute instead of completing the child.
+  `delegation_plan.inline_policy` describes when an inline exception may be recorded, but
+  it does not override spawn-required completion evidence.
 - Insert `/eval-swarm` when `.claude/commands/eval.md` E1–E6 triggers fire.
 - Use bounded replay for failed review/eval findings; stop at the threshold.
+- For PM-orchestrated presets with agentic-eval requirements, evaluator stages
+  must emit formal packets with `score`, `threshold`, `dimensions`, and
+  `residual_risks`, plus `iteration_history` for evaluator-optimizer loops;
+  narrative "green" claims alone are incomplete instrumentation.
 - Close out through the normal session lifecycle and record the autonomous approval basis.
 
 The adaptive pipeline may be short for known-pattern edits or longer for planning-bank,
@@ -115,7 +141,7 @@ kernel/governance/M1 approvals.
 
 ## Loop Governor
 
-When the operator grants a continuing self-development budget, `autonomous-auto` may run as
+When the operator grants a continuing project-delivery budget, `autonomous-auto` may run as
 a loop rather than a single delivery. Each iteration is still a normal scoped Azoth session:
 
 1. Execute the current adaptive pipeline.
@@ -168,7 +194,7 @@ candidate, rejected alternatives where visible, readiness/risk/value scoring, an
 alignment checkpoint summary. Scope gates opened by the loop should carry the autonomy
 budget and decision capsule so the run can be reconstructed from durable artifacts.
 
-For durable self-building over time, prefer a Codex automation or cron-style wakeup that
+For durable project evolution over time, prefer a Codex automation or cron-style wakeup that
 runs one bounded iteration per wakeup. A single long interactive thread may be used for
 experiments and calibration, but it is not the durable default. Heartbeat continuation is
 only appropriate for short same-thread runs where the operator is still actively observing.
@@ -195,6 +221,6 @@ local evidence alone.
 
 `/auto` is the explicit composed delivery path. `dynamic-full-auto` is the high-autonomy
 one-session adaptive delivery pipeline with discovery/research insertion. `autonomous-auto`
-is the branch-local self-development mode with async alignment, explicit `approval_basis`
+is the branch-local project-delivery mode with async alignment, explicit `approval_basis`
 persistence, and an optional loop governor for continuing from one proposal, initiative,
 or task to the next.

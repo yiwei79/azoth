@@ -1,0 +1,6 @@
+tests/test_harness_profile.py
+tests/test_context_view.py
+tests/test_personal_harness_context.py
+tests/test_personal_harness_practice_rehearsal.py
+tests/public/test_public_personal_knowledge_recall.py
+tests/public/test_public_personal_knowledge_review.py

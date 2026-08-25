@@ -1,16 +1,82 @@
 # Azoth
 
-**A portable operating system for governed AI-assisted software delivery.**
+**A personal agentic-engineering project for governed AI-assisted software
+delivery.**
 
-Azoth gives an AI coding project a durable way to start work, reason about
-scope, use agents and tools, preserve useful learning, and stop safely. It is
-for people who want more than a prompt collection: a lightweight architecture
-that makes autonomy useful without making it unbounded.
+Azoth explores a practical question: how should AI coding agents be engineered
+when they are programmable probabilistic components inside a larger system,
+rather than copilots or simulated employees? It connects intent to compact
+context, bounded tools, explicit authority, evidence, stopping, and recovery so
+agent-assisted work can remain useful without becoming unbounded.
 
-It is a public, installable product extracted from the private `root-azoth`
-workshop. The public repository contains the toolkit, documentation, platform
-adapters, commands, skills, and installation surfaces needed to use it in a
-project.
+Azoth is my independent project. `v0.3.0-rc.1` is the latest implemented
+snapshot of that exploration, focused on Personal Harness OS. It is an
+unfinished release candidate, not a finished universal harness or an external
+adoption claim.
+
+## Personal Harness OS preview
+
+Personal Harness OS keeps ordinary work lightweight and escalates consequential
+work into explicit context, authority, evidence, stopping, and recovery
+boundaries. It routes by intended effect and risk—not by personified employee
+roles.
+
+Personal Harness OS is built around three portable contracts:
+
+| Contract | Purpose |
+|---|---|
+| `HarnessRequest` → `HarnessDecision` | `classify_harness_request` selects a `profile` of `guide`, `assisted`, `managed`, or `governed_autonomy` from intended effects and risk |
+| `RouteCapsule` | Exposes route state, required authority, inputs, next safe action, and stop reason |
+| Context-view packet | `build_context_view` pulls compact approved summaries and source pointers without dumping raw memory |
+
+The design uses the smallest architecture that preserves the controls a task
+actually needs. Retrieval, durable memory, or multi-agent coordination are
+added only when a demonstrated failure mode justifies their cost.
+
+**Implemented in this RC:** deterministic request classification, typed
+route packets, bounded context assembly, a generic no-write rehearsal runner
+and fixture, and 30 passing portable public tests. Private operator state and
+environment-specific adapters remain excluded, and the wider profile remains
+under development.
+
+### Core control loop
+
+```mermaid
+flowchart LR
+    A["Business intent + success envelope"] --> B["Context and state"]
+    B --> C["Probabilistic agent + deterministic tools"]
+    C --> D["Bounded action"]
+    D --> E["Observed outcome"]
+    E --> F["Evaluation and evidence"]
+    F --> G{"Correct, stop, or recover"}
+    G --> B
+    H["Protected human authority"] -.-> D
+    H -.-> G
+```
+
+Protected human authority governs consequential action, correction, recovery,
+and release decisions. This is an engineering lens, not a formal control-theory
+claim or a measured signal-to-noise model.
+
+- [Engineering case study: *Narrow Success, Broad Failure*](docs/case-studies/narrow-success-broad-failure.md)
+- [Personal Harness contracts and preview boundary](docs/PERSONAL_HARNESS_OS.md)
+
+## How the project fits together
+
+Azoth is one evolving project, not a collection of separate products. The
+repository preserves both the current minimum-sufficient direction and the
+broader framework that preceded it:
+
+| Surface | Role in the project |
+|---|---|
+| Personal Harness OS | The current direction and the focus of `v0.3.0-rc.1` |
+| Routing, context, rehearsal, and focused tests | The validated release surface for this RC |
+| Kernel, skills, agents, commands, and pipelines | The broader governed toolkit and design history from which the lighter path emerged |
+| *Narrow Success, Broad Failure* | The case study explaining the architectural evolution and its trade-offs |
+
+The wider repository remains useful for inspection and continued development,
+but this release validates only the selected Personal Harness contracts and
+tests described above.
 
 ## Why Azoth
 
@@ -20,8 +86,8 @@ scope silently, platform-specific instructions drift apart, and review happens
 too late. Azoth addresses those failure modes through a small set of durable
 design decisions:
 
-- **One governed operating model:** define the rules once, then project them to
-  supported AI-development hosts.
+- **One governed operating model:** define shared rules once, then represent
+  them through host-specific adapters.
 - **Bounded autonomy:** agents can move quickly inside explicit trust,
   scope, approval, checkpoint, and recovery boundaries.
 - **Memory with promotion:** retain episodes, promote only reinforced patterns,
@@ -30,6 +96,32 @@ design decisions:
   delivery pipelines when the work warrants more review.
 - **Honest portability:** preserve shared semantics where a host can enforce
   them, and document degradation where it cannot.
+
+## How a governed session works
+
+Azoth turns a session into a small, inspectable delivery loop:
+
+```text
+Activate -> Survey -> Operate -> Harden
+   |           |          |         |
+   |           |          |         +-- verify, checkpoint, retain lessons
+   |           |          +------------ work within scoped trust boundaries
+   |           +----------------------- inspect project state and relevant memory
+   +----------------------------------- load the kernel and project contract
+```
+
+The workflow is backed by four safeguards:
+
+1. **Scope before change.** Map the task and its blast radius before editing.
+2. **Trust-aware action.** Separate actions that may proceed, need approval,
+   or must never run automatically.
+3. **Meaningful human gates.** Require a human decision when risk, governance,
+   or scope expansion makes it valuable.
+4. **Recovery by design.** Use checkpoints and Git-based recovery rather than
+   treating a failed autonomous run as irreversible.
+
+For the precise contract, see the [Trust Contract](kernel/TRUST_CONTRACT.md)
+and [gate protocol](docs/GATE_PROTOCOL.md).
 
 ## Architecture at a glance
 
@@ -62,32 +154,6 @@ adapt, and a fully emergent agent system that slowly loses its standards.
 
 Read the full design rationale in [the architecture guide](docs/AZOTH_ARCHITECTURE.md).
 
-## How a governed session works
-
-Azoth turns a session into a small, inspectable delivery loop:
-
-```text
-Activate -> Survey -> Operate -> Harden
-   |           |          |         |
-   |           |          |         +-- verify, checkpoint, retain lessons
-   |           |          +------------ work within scoped trust boundaries
-   |           +----------------------- inspect project state and relevant memory
-   +----------------------------------- load the kernel and project contract
-```
-
-The workflow is backed by four safeguards:
-
-1. **Scope before change.** Map the task and its blast radius before editing.
-2. **Trust-aware action.** Separate actions that may proceed, need approval,
-   or must never run automatically.
-3. **Meaningful human gates.** Require a human decision when risk, governance,
-   or scope expansion makes it valuable.
-4. **Recovery by design.** Use checkpoints and Git-based recovery rather than
-   treating a failed autonomous run as irreversible.
-
-For the precise contract, see the [Trust Contract](kernel/TRUST_CONTRACT.md)
-and [gate protocol](docs/GATE_PROTOCOL.md).
-
 ## Memory that improves without silently rewriting policy
 
 Azoth separates transient experience from durable operating rules:
@@ -109,17 +175,13 @@ and [architecture details](docs/AZOTH_ARCHITECTURE.md#5-layer-1-minerals-portabl
 ## Platforms and portability
 
 Azoth is protocol-first. Its core governance and workflow semantics live in
-portable source files; adapters translate them into the conventions of each
-host. Claude Code and Codex are co-primary interactive design surfaces, while
-other supported hosts use thin adapters where their capabilities differ.
-
-This is intentionally not a promise that every host enforces every rule in the
-same way. Azoth records those differences instead of reducing the entire system
-to the weakest platform.
+portable source files; adapters represent them through different host
+conventions. In this RC, those surfaces are inspectable design artifacts;
+cross-host parity and supported adoption are outside the preview boundary.
 
 - [Co-primary platform blueprint](docs/CO_PRIMARY_PLATFORM_BLUEPRINT.md)
 - [Platform adapters](kernel/templates/platform-adapters/)
-- [Deployment script](scripts/azoth-deploy.py)
+- [Adapter projection source](scripts/azoth-deploy.py)
 
 ## What is included
 
@@ -131,26 +193,21 @@ to the weakest platform.
 | [`commands/`](commands/) | Human-facing entry points for sessions, planning, delivery and review |
 | [`pipelines/`](pipelines/) | Declarative delivery presets and staged orchestration |
 | [`docs/`](docs/) | Architecture, decisions, platform strategy and protocols |
-| [`scripts/`](scripts/) | Installation, deployment, validation, checkpoint and support utilities |
+| [`scripts/`](scripts/) | Routing, context, validation, checkpoint and support utilities |
+| [`examples/personal-harness/`](examples/personal-harness/) | Portable no-write rehearsal cases |
+| [Focused public tests](tests/test_personal_harness_practice_rehearsal.py) | Routing, context, recall/review and rehearsal contract coverage |
 
-## Install
+## Inspect the preview
 
-Clone this repository into the project where you want to use Azoth, then run:
+`v0.3.0-rc.1` is presented for source inspection and local experimentation, not
+as a supported installation or adoption path. Installer surfaces remain under
+development and are not a validated entrypoint for this preview.
 
-```bash
-pip install -r requirements-dev.txt
-bash install.sh
-```
-
-On Windows, use `install.ps1`. The installer projects the appropriate Azoth
-surfaces into the target project. Then open `CLAUDE.md` or the generated
-host-specific entrypoint and follow the bootloader.
-
-For a fresh GitHub Copilot project, explicitly select the Copilot surface:
-
-```bash
-AZOTH_PLATFORMS=copilot bash /path/to/azoth/install.sh
-```
+- [Routing and authority contracts](scripts/harness_profile.py)
+- [Bounded context assembly](scripts/personal_harness_context.py)
+- [No-write rehearsal runner](scripts/personal_harness_practice_rehearsal.py)
+- [Rehearsal fixture](examples/personal-harness/rehearsal-cases.yaml)
+- [Focused rehearsal tests](tests/test_personal_harness_practice_rehearsal.py)
 
 ## Start exploring
 
@@ -158,7 +215,7 @@ AZOTH_PLATFORMS=copilot bash /path/to/azoth/install.sh
 - Want the design record? Browse the [architecture decisions index](docs/DECISIONS_INDEX.md).
 - Want safety and autonomy rules? Read the [Trust Contract](kernel/TRUST_CONTRACT.md).
 - Want to understand host differences? Read the [co-primary platform blueprint](docs/CO_PRIMARY_PLATFORM_BLUEPRINT.md).
-- Want to use or extend it? Start with [`commands/`](commands/) and [`skills/`](skills/).
+- Want to inspect or extend it? Start with [`commands/`](commands/) and [`skills/`](skills/).
 
 ## Boundaries and status
 

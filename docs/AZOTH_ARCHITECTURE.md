@@ -1,6 +1,6 @@
 # AZOTH Architecture Plan v0.1.0
 
-> Finalized: 2026-04-03 | Session: {{REDACTED}} Architect Session
+> Finalized: 2026-04-03 | Session: source operations framework Architect Session
 > Status: APPROVED — ready for Phase 1 implementation
 >
 > Strategic follow-up: see `docs/CO_PRIMARY_PLATFORM_BLUEPRINT.md` for the
@@ -924,13 +924,13 @@ azoth/
 | D31 | SURVEY auto-detect + `/intake` | Passive awareness + explicit processing |
 | D32 | 12-field insight schema | Structured enough to triage, flexible enough to extend |
 | D33 | 4-step intake protocol | Validate → Classify → Triage → Integrate/Archive |
-| D34 | root-azoth = personal root scaffold | Private workshop, not consumer product |
+| D34 | Azoth development workshop = personal root scaffold | Private workshop, not consumer product |
 | D35 | azoth = public deployable product | Extracted via sync, consumer-ready |
 | D36 | `--scaffold` vs `--project` modes | Phase 4 product differentiation |
-| D37 | root-azoth (private) / azoth (public) | Naming convention for clarity |
+| D37 | Azoth development workshop (private) / azoth (public) | Naming convention for clarity |
 | D38 | Scaffold infra now, extraction later | Build the workshop, extract the product when ready |
 | D39 | Roadmap tracking: `.azoth/roadmap.yaml` | Machine-readable task backlog for agent self-direction |
-| D40 | Repo rename: root-azoth (private) | Clear distinction from azoth (public product) |
+| D40 | Repo rename: Azoth development workshop (private) | Clear distinction from azoth (public product) |
 | D41 | Bootstrap loop: 4 artifacts | Roadmap + /next + preflight gate + decisions index |
 | D42 | Path duality (scaffold `kernel/` vs consumer `.azoth/kernel/`) | Normative rules in §18 Path duality; installer deploys read-only copy |
 | D43 | Commit-time governance enforcement hooks | Git `commit-msg` hook + `scripts/git_commit_policy.py` reject `Co-Authored-By:` trailers; `scripts/azoth_install_git_hooks.py` sets `core.hooksPath` — VCS-time complement to BL-002 PreToolUse scope-gate (write-time); further format rules optional |
@@ -978,7 +978,7 @@ azoth/
 
 | Attribute | Root Scaffold (this repo) | Deployable Product |
 |-----------|---------------------------|-------------------|
-| Repo name | **root-azoth** (private) | **azoth** (public) |
+| Repo name | **Azoth development workshop** (private) | **azoth** (public) |
 | Purpose | Development workshop, design lab | Consumer-ready toolkit |
 | Contains | All experiments, audit trails, session history | Clean extracted artifacts |
 | Audience | The alchemist (you) | Any developer |
@@ -987,10 +987,10 @@ azoth/
 ### 3-Tier Product Flow
 
 ```
-Tier 1: Source Framework ({{REDACTED}} Agentic Framework)
+Tier 1: Source Framework (source operations framework Agentic Framework)
   │ patterns extracted via azoth-sync.py
   ▼
-Tier 2: Root Scaffold (root-azoth — this repo)
+Tier 2: Root Scaffold (Azoth development workshop — this repo)
   │ product extracted via sync-config.yaml profiles
   ▼
 Tier 3: Deployable Product (azoth — public repo)
@@ -1010,9 +1010,9 @@ uses a 4-plane operating model:
 
 | Plane | Authority | Owns | Must not own |
 | --- | --- | --- | --- |
-| `root-azoth` development workshop | Toolkit source, roadmap, validation, extraction | Source scripts, tests, governance, release evidence, generated adapters | Personal cockpit state or project-local write authority |
+| `Azoth development workshop` development workshop | Toolkit source, roadmap, validation, extraction | Source scripts, tests, governance, release evidence, generated adapters | Personal cockpit state or project-local write authority |
 | Public `azoth` product | Installable release authority | Clean extracted runtime, installers, public docs, tags, public CI | Private root history, cockpit memory, project secrets |
-| `yiwei-azoth-cockpit` personal control plane | Operator routing, global pointers, release ledger, personal memory | Project pointers, cockpit receipts, personal/global context, safe-open command surface | Project source, project instructions, project-local gates |
+| `operator cockpit` personal control plane | Operator routing, global pointers, release ledger, personal memory | Project pointers, cockpit receipts, personal/global context, safe-open command surface | Project source, project instructions, project-local gates |
 | Controlled project repos | Project-local context and write authority | Code, project memory, project instructions, project gates, project receipts | Cockpit-global memory or public product release authority |
 
 Project switching from the cockpit is handoff execution: the cockpit may print
@@ -1048,7 +1048,7 @@ Azoth uses **two legitimate locations** for the same four governance documents (
 
 | Context | Authoritative path | Role |
 |---------|-------------------|------|
-| **Scaffold / toolkit development** (e.g. root-azoth clone, Tier 2) | Repo root **`kernel/`** | Source of truth. Edits happen here; changes promote via governance. |
+| **Scaffold / toolkit development** (e.g. Azoth development workshop clone, Tier 2) | Repo root **`kernel/`** | Source of truth. Edits happen here; changes promote via governance. |
 | **Consumer project** (after `install.sh` / `install.ps1`, Tier 3 → consumer) | **`.azoth/kernel/`** | Read-only copy deployed by the installer. Not a second editable tree. |
 
 **How to tell:** If the repository contains a top-level **`kernel/`** directory next to `scripts/` and `skills/`, you are in **scaffold** mode — use `kernel/` for Layer 0. If there is **no** repo root `kernel/` but `.azoth/kernel/*.md` exists, you are in **consumer** mode — treat `.azoth/kernel/` as the governance read path; do not create a parallel root `kernel/` for edits.
@@ -1066,13 +1066,13 @@ Azoth uses **two legitimate locations** for the same four governance documents (
 | D31 | SURVEY auto-detect + `/intake` | Passive awareness + explicit processing |
 | D32 | 12-field insight schema | Structured enough to triage, flexible enough to extend |
 | D33 | 4-step intake protocol | Validate → Classify → Human Triage → Integrate/Archive *(step 3 extended by D49)* |
-| D34 | root-azoth = personal root scaffold | Private workshop, not consumer product |
+| D34 | Azoth development workshop = personal root scaffold | Private workshop, not consumer product |
 | D35 | azoth = public deployable product | Extracted via sync, consumer-ready |
 | D36 | `--scaffold` vs `--project` modes | Phase 4 product differentiation |
-| D37 | root-azoth (private) / azoth (public) | Naming convention for clarity |
+| D37 | Azoth development workshop (private) / azoth (public) | Naming convention for clarity |
 | D38 | Scaffold infra now, extraction later | Build the workshop, extract the product when ready |
 | D39 | Roadmap tracking: `.azoth/roadmap.yaml` | Machine-readable task backlog for agent self-direction *(superseded by D48)* |
-| D40 | Repo rename: root-azoth (private) | Clear distinction from azoth (public product) |
+| D40 | Repo rename: Azoth development workshop (private) | Clear distinction from azoth (public product) |
 | D41 | Bootstrap loop: 4 artifacts | Roadmap + /next + preflight gate + decisions index |
 | D42 | Path duality: `kernel/` (scaffold) vs `.azoth/kernel/` (consumer) | Same four governance files; role depends on install vs development — see §18 Path duality |
 
@@ -1265,7 +1265,7 @@ any insight                 reinforced >=2x                         governance-g
 m2_candidate=true flag      set at intake                           target_layer: M1
 ```
 
-### Architecture Decisions (D47–D54)
+### Architecture Decisions (D47–D55)
 
 | # | Decision | Rationale |
 |---|----------|-----------|
@@ -1277,6 +1277,7 @@ m2_candidate=true flag      set at intake                           target_layer
 | D52 | Session Welcome UX: `/start` + `scripts/welcome.py` | Single entry point for session orientation — routes to /next, /intake, /promote, or custom goal; in **Codex**, `$azoth-start` is the calm-flow daily entry surface and raw slash tokens are compatibility fallback. **Claude Code** may also inject plain orientation via **SessionStart** (P5-007) and mirror to `.azoth/session-orientation.txt` (`CLAUDE.md` rule 9) |
 | D53 | Auto-versioning policy | Version increments are delivery-triggered — 0.0.PHASE.PATCH pre-release, then 0.1.MILESTONE_PHASE.PATCH while shipping toward v0.2.0 |
 | D54 | Branch model + worktree policy | Two permanent branches (`main`, `phase/vN-pN`); short-lived feature/patch branches deleted on merge; zero-worktree default to avoid scope-gate + run-ledger conflicts |
+| D55 | Successor-milestone delivery-line policy | Preserve D53's four-part workshop time series across public milestones: work toward pre-1.0 `v0.N.0` uses `0.(N-1).MILESTONE_PHASE.PATCH`, with manifest/roadmap compatibility validated before every bump |
 
 ---
 
@@ -1477,3 +1478,46 @@ branches. Canonical resolution:
 - `.claude/worktrees/` registry + `/worktree-sync` skill — worktree lifecycle tracking.
 - `scripts/run_ledger.py claim / release-claim` — write claim enforcement for parallel
   worktrees (BL-011 compliant).
+
+---
+
+## 22. Successor-Milestone Delivery Lines (D55)
+
+### Context
+
+D53 established the historical transition from the pre-release roadmap into work toward
+`v0.2.0`: the public target remained a semantic-version milestone while the private
+workshop used `0.1.MILESTONE_PHASE.PATCH` as its delivery time series. D55 preserves that
+separation for successor milestones without rewriting D53's historical `v0.2.0` rule.
+
+### Decision
+
+For pre-1.0 public targets `v0.N.0` where `N >= 2`, the private root workshop records work
+on this four-part line:
+
+```
+0.(N-1).MILESTONE_PHASE.PATCH
+```
+
+Therefore the active `v0.3.0-p1` slice maps to `azoth.yaml` version `0.2.1.PATCH`:
+
+- `0.2` identifies the latest completed public minor line while `v0.3.0` remains a target.
+- `1` is the milestone-local phase and must match both `phase: 1` and the `-p1` suffix.
+- `PATCH` is the delivery counter mirrored by the active roadmap block's `current_patch`.
+
+The mapping is a compatibility contract, not a second public version. The public extracted
+product advertises its release-candidate or release version independently; root-only phase,
+roadmap, and workshop metadata do not cross the product boundary.
+
+### Enforcement
+
+Before `--patch` or `--phase`, `scripts/version-bump.py` validates all of the following:
+
+1. `azoth.yaml` `milestone` equals the milestone prefix of roadmap `active_version`.
+2. The first two workshop version components match the target's predecessor delivery line.
+3. The workshop phase component matches the active working-slice suffix.
+4. The roadmap patch cursor and workshop patch component remain consistent.
+
+Unsupported milestone shapes fail closed until a later architecture decision defines their
+mapping. The legacy human-gated `--release` operation remains specifically scoped to the
+historical v0.1.0-to-v0.2.0 transition.

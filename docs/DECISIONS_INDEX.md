@@ -1,6 +1,6 @@
 # Architecture Decisions Index
 
-Machine-readable index of all architecture decisions (D1–D54).
+Machine-readable index of all architecture decisions (D1–D55).
 Agents use this to check compliance and track implementation status.
 
 See `docs/AZOTH_ARCHITECTURE.md` for full rationale and context.
@@ -51,13 +51,13 @@ and unified governance model.
 | D31 | SURVEY auto-detect + `/intake` | ✅ implemented | kernel/BOOTLOADER.md, .claude/commands/intake.md | 1.5 |
 | D32 | 12-field insight schema | ✅ implemented | kernel/GOVERNANCE.md Section 7 | 1.5 |
 | D33 | 4-step intake protocol | ✅ implemented | .claude/commands/intake.md (step 3 extended to 3-axis by D49) | 1.5 |
-| D34 | root-azoth = personal root scaffold | ✅ implemented | azoth.yaml, CLAUDE.md | 1.5 |
+| D34 | Azoth development workshop = personal root scaffold | ✅ implemented | azoth.yaml, CLAUDE.md | 1.5 |
 | D35 | azoth = public deployable product | 📋 planned | Phase 4 extraction | 4 |
 | D36 | `--scaffold` vs `--project` modes | 📋 planned | Phase 4 installer | 4 |
-| D37 | root-azoth (private) / azoth (public) | ✅ implemented | Naming convention | 1.5 |
+| D37 | Azoth development workshop (private) / azoth (public) | ✅ implemented | Naming convention | 1.5 |
 | D38 | Scaffold infra now, extraction later | ✅ implemented | sync-config.yaml | 1.5 |
 | D39 | Roadmap tracking: `.azoth/roadmap.yaml` | 🔄 superseded | Superseded by D48 (roadmap.yaml versioned) | 1.5 |
-| D40 | Repo rename: root-azoth | ✅ implemented | Repository naming | 1.5 |
+| D40 | Repo rename: Azoth development workshop | ✅ implemented | Repository naming | 1.5 |
 | D41 | Bootstrap loop: 4 artifacts | ✅ implemented | roadmap + next + preflight + decisions index | 1.5 |
 | D42 | Path duality convention: kernel/ vs .azoth/kernel/ | ✅ implemented | `docs/AZOTH_ARCHITECTURE.md` §18 Path duality | 4 |
 | D43 | Commit-time governance enforcement hooks | 🔧 partial | `scripts/git_commit_policy.py`, `scripts/git-hooks/commit-msg`, `scripts/azoth_install_git_hooks.py` (Co-Authored-By); optional format rules TBD — BL-002 is write-time subset | 5 |
@@ -72,13 +72,14 @@ and unified governance model.
 | D52 | Session Welcome UX: `/start` + `scripts/welcome.py` | ✅ implemented | `scripts/welcome.py` + `.claude/commands/start.md` (BL-007); Phase 5: `.claude/hooks/session_start_welcome.py`, `.azoth/session-orientation.txt` (runtime), `CLAUDE.md` rule 9 | 4 |
 | D53 | Auto-versioning policy: delivery-triggered version increments | ✅ implemented | `scripts/version-bump.py` (--patch / --phase / --release) + roadmap `active_version`; /session-closeout + /deliver-full `--patch` (BL-009); `--release` closes v0.0.7→v0.1.0 and activates v0.2.0 | 4 |
 | D54 | Branch model + worktree policy | ✅ implemented | `CLAUDE.md` §Git Conventions (Branch Model, Worktree Policy, Merge Hygiene); two permanent branches (`main`, `phase/v0.2.0-pN`); short-lived `patch/<bl-id>` + `feat/<slug>` branches deleted on merge; zero-worktree default with run-ledger claim required for parallel worktrees | 8 |
+| D55 | Successor-milestone delivery-line policy | ✅ implemented | `docs/AZOTH_ARCHITECTURE.md` §22 + `scripts/version-bump.py`; pre-1.0 target `v0.N.0` maps to root workshop `0.(N-1).PHASE.PATCH` with manifest/roadmap compatibility checks | 8 |
 
 ## Summary
 
 | Status | Count |
 |--------|-------|
-| ✅ implemented | 39 |
+| ✅ implemented | 40 |
 | 🔧 partial | 9 |
 | 📋 planned | 5 |
 | 🔄 superseded | 1 |
-| **Total** | **54** |
+| **Total** | **55** |

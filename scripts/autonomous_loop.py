@@ -2,8 +2,8 @@
 """Autonomous-auto loop governor.
 
 The governor is intentionally deterministic: it reads a local loop-state file,
-decides the next safe Azoth self-development action, and can open the next
-scope gate for a bounded autonomous-auto iteration.
+decides the next safe consumer-project action, and can open the next scope gate
+for a bounded autonomous-auto iteration.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from typing import Any
 
 import yaml
 
+import roadmap_task_id
 from autonomous_campaign_audit import (
     build_campaign_audit,
     build_nightly_automation_audit_bundle,
@@ -98,7 +99,7 @@ ALIGNMENT_PACKET_TYPES = {"async_advisory", "async_override", "async_stop", "app
 ALIGNMENT_DISPOSITIONS = {"pending", "applied", "deferred", "rejected"}
 DEFAULT_ALIGNMENT_CHECKPOINT = "next_safe_checkpoint"
 VISION_BANDS = {"red": 0, "yellow": 1, "green": 2}
-DEFAULT_VISION_ANCHOR = ".azoth/roadmap-specs/v0.2.0/AUTONOMOUS-AUTO-UX-EXPERIENCE.md"
+VISION_ANCHOR_FILENAME = "AUTONOMOUS-AUTO-UX-EXPERIENCE.md"
 DEFAULT_VISION_TARGET_BAND = "green"
 DEFAULT_STOP_CONDITIONS = [
     "active_scope_present",
@@ -121,6 +122,15 @@ ROUTE_TABLE_STATES = [
     "completed_or_stale_campaign",
     "high_severity_self_capture",
 ]
+NONBLOCKING_STAGE_SUMMARY_DISPOSITIONS = {
+    "approved",
+    "approve",
+    "accepted",
+    "complete",
+    "pass",
+    "passed",
+    "no-changes",
+}
 
 
 def _utc_now() -> datetime:
@@ -149,6 +159,26 @@ def _load_yaml_mapping(path: Path) -> dict[str, Any]:
         return {}
     data = safe_load_yaml_path(path)
     return data if isinstance(data, dict) else {}
+
+
+def _active_roadmap_milestone(root: Path) -> str:
+    roadmap = _load_yaml_mapping(root / ".azoth" / "roadmap.yaml")
+    try:
+        return roadmap_task_id.active_milestone(roadmap)
+    except ValueError:
+        return ""
+
+
+def _active_spec_ref(root: Path, filename: str) -> str:
+    milestone = _active_roadmap_milestone(root)
+    if not milestone:
+        return ""
+    return f".azoth/roadmap-specs/{milestone}/{filename}"
+
+
+def _optional_vision_anchor(root: Path) -> str:
+    anchor = _active_spec_ref(root, VISION_ANCHOR_FILENAME)
+    return anchor if anchor and (root / anchor).is_file() else ""
 
 
 def _write_yaml_mapping(path: Path, data: dict[str, Any]) -> None:
@@ -197,6 +227,8 @@ def _active_scope(root: Path) -> dict[str, Any]:
     except json.JSONDecodeError:
         return {}
     if not isinstance(data, dict) or data.get("approved") is not True:
+        return {}
+    if str(data.get("closed_at") or "").strip():
         return {}
     if str(data.get("scope_status") or "active").strip() not in {"", "active"}:
         return {}
@@ -475,8 +507,11 @@ def _vision_state(state: dict[str, Any]) -> dict[str, Any]:
     target_rank = VISION_BANDS.get(target_band, VISION_BANDS[DEFAULT_VISION_TARGET_BAND])
     current_rank = VISION_BANDS.get(current_band)
     realized = bool(current_rank is not None and current_rank >= target_rank)
+    anchor = str(vision.get("anchor") or "")
     return {
-        "anchor": str(vision.get("anchor") or DEFAULT_VISION_ANCHOR),
+        "anchor": anchor,
+        "anchor_required": False,
+        "anchor_available": bool(anchor),
         "target_band": target_band if target_band in VISION_BANDS else DEFAULT_VISION_TARGET_BAND,
         "current_band": current_band,
         "realized": realized,
@@ -776,6 +811,15 @@ def _next_campaign_recommendation(
     threshold_rationale = _selection_threshold_rationale(ranked)
     if threshold_rationale:
         draft_declaration["threshold_rationale"] = threshold_rationale
+    evidence_refs = [
+        ".azoth/autonomous-loop-state.local.yaml",
+        ".azoth/initiative-banks/",
+        ".azoth/proposals/",
+        ".azoth/backlog.yaml",
+    ]
+    vision_anchor = _optional_vision_anchor(root)
+    if vision_anchor:
+        evidence_refs.insert(1, vision_anchor)
     return {
         "available": True,
         "reason": "completed_green_campaign_ready_for_fresh_budget",
@@ -786,13 +830,12 @@ def _next_campaign_recommendation(
             "readiness",
             "fresh_budget_required",
         ],
-        "evidence_refs": [
-            ".azoth/autonomous-loop-state.local.yaml",
-            ".azoth/roadmap-specs/v0.2.0/AUTONOMOUS-AUTO-UX-EXPERIENCE.md",
-            ".azoth/initiative-banks/",
-            ".azoth/proposals/",
-            ".azoth/backlog.yaml",
-        ],
+        "evidence_refs": evidence_refs,
+        "vision_anchor": {
+            "path": vision_anchor or None,
+            "required": False,
+            "available": bool(vision_anchor),
+        },
         "ux_anchor_gaps": [
             "continuation_after_closeout",
             "direction_over_micromanagement",
@@ -1182,6 +1225,54 @@ def _external_freshness_block(data: dict[str, Any]) -> dict[str, str] | None:
     }
 
 
+def _approval_acknowledges_research_only_human_gate(approval_basis: str) -> bool:
+    text = str(approval_basis or "").casefold().replace("-", " ")
+    return (
+        "research only" in text
+        and "hydration" in text
+        and "implementation" in text
+        and "blocked" in text
+        and "protected" in text
+        and "residual" in text
+        and "acknowledg" in text
+        and "not authorized for mutation" in text
+    )
+
+
+def _human_gate_acknowledgement_for_preflight(
+    *,
+    action: str,
+    candidate: dict[str, Any],
+    approval_basis: str,
+    corpus_route: str,
+) -> dict[str, Any]:
+    if corpus_route != "human_gate_required":
+        return {"required": False, "accepted": False, "reason": ""}
+    if action != "research_initiative":
+        return {
+            "required": True,
+            "accepted": False,
+            "reason": "corpus_human_gate_only_research_initiative_can_clear",
+        }
+    if _is_protected(candidate):
+        return {
+            "required": True,
+            "accepted": False,
+            "reason": "candidate_itself_is_protected",
+        }
+    if not _approval_acknowledges_research_only_human_gate(approval_basis):
+        return {
+            "required": True,
+            "accepted": False,
+            "reason": "missing_research_only_no_mutation_acknowledgement",
+        }
+    return {
+        "required": True,
+        "accepted": True,
+        "reason": "research_only_protected_residual_acknowledged_no_mutation",
+    }
+
+
 def _strategy_preflight_for_decision(
     root: Path | None,
     state: dict[str, Any],
@@ -1233,6 +1324,13 @@ def _strategy_preflight_for_decision(
             ).get("learning_harvester", {})
         except Exception:
             corpus_harvester = {}
+    corpus_route = str(corpus_harvester.get("selected_learning_route") or "")
+    human_gate_acknowledgement = _human_gate_acknowledgement_for_preflight(
+        action=action,
+        candidate=candidate,
+        approval_basis=approval_basis,
+        corpus_route=corpus_route,
+    )
     write_claim = _write_claim_status(root) if root is not None else {"held": False}
     active_scope = _active_scope(root) if root is not None else {}
     approval_basis_present = approval_basis_is_present
@@ -1281,17 +1379,17 @@ def _strategy_preflight_for_decision(
                 ),
             }
         )
-    corpus_route = str(corpus_harvester.get("selected_learning_route") or "")
     if corpus_route in {"human_gate_required", "defer_to_intake"}:
-        blocked.append(
-            {
-                "action": action,
-                "reason": (
-                    "learning harvester corpus recommendation is "
-                    f"{corpus_route}; route through inbox/intake or human gate first"
-                ),
-            }
-        )
+        if not human_gate_acknowledgement.get("accepted"):
+            blocked.append(
+                {
+                    "action": action,
+                    "reason": (
+                        "learning harvester corpus recommendation is "
+                        f"{corpus_route}; route through inbox/intake or human gate first"
+                    ),
+                }
+            )
     readiness = (
         route_decision.get("readiness_evidence")
         if isinstance(route_decision.get("readiness_evidence"), dict)
@@ -1344,6 +1442,7 @@ def _strategy_preflight_for_decision(
             "campaign_recommendation": corpus_harvester,
             "write_authority": "advisory_only_scope_gates_still_required",
         },
+        "human_gate_acknowledgement": human_gate_acknowledgement,
         "gate_status": {
             "active_scope": bool(active_scope),
             "active_scope_id": str(active_scope.get("session_id") or ""),
@@ -1437,13 +1536,18 @@ def _validate_strategy_preflight_evidence(
 
 
 def _delegation_stage(
-    stage_id: str, subagent_type: str, trigger: str, purpose: str
+    stage_id: str,
+    subagent_type: str,
+    trigger: str,
+    purpose: str,
+    evidence_policy: str = "spawn_required",
 ) -> dict[str, str]:
     return {
         "stage_id": stage_id,
         "subagent_type": subagent_type,
         "trigger": trigger,
         "purpose": purpose,
+        "evidence_policy": evidence_policy,
     }
 
 
@@ -1554,6 +1658,10 @@ def _delegation_plan_for_decision(decision: dict[str, Any], *, session_id: str) 
         ],
     }
     stages = stage_map.get(action, [])
+    stage_evidence_policy = {
+        str(stage["stage_id"]): str(stage.get("evidence_policy") or "spawn_required")
+        for stage in stages
+    }
     return {
         "plan_schema_version": 1,
         "plan_id": f"{session_id}-delegation",
@@ -1572,7 +1680,9 @@ def _delegation_plan_for_decision(decision: dict[str, Any], *, session_id: str) 
             "record_spawn": "python3 scripts/run_ledger.py record-spawn",
             "record_summary": "python3 scripts/run_ledger.py record-summary",
             "require_evidence": "python3 scripts/run_ledger.py require-stage-evidence",
+            "require_completion": "python3 scripts/run_ledger.py require-completion-evidence",
         },
+        "stage_evidence_policy": stage_evidence_policy,
         "stages": stages,
     }
 
@@ -3040,7 +3150,7 @@ def _current_loop_report(
             "remaining_iterations": report.get("remaining_iterations"),
             "can_continue": report.get("can_continue"),
             "next_likely_move": "not-evaluated",
-            "route_authority": "not-evaluated",
+            "route_authority": "unavailable_fail_closed",
             "stop_reason": report.get("stop_reason"),
             "completion_reason": report.get("completion_reason"),
         }
@@ -3065,6 +3175,347 @@ def _current_loop_report(
     return report
 
 
+def _route_authority_from_mapping(payload: dict[str, Any]) -> str:
+    explicit = str(payload.get("route_authority") or "").strip()
+    if explicit:
+        return explicit
+    selected_route = str(
+        payload.get("selected_route")
+        or payload.get("route")
+        or payload.get("selected_action")
+        or ""
+    ).strip()
+    route_state = str(payload.get("route_state") or "").strip()
+    if selected_route and route_state:
+        return f"{selected_route}:{route_state}"
+    return selected_route
+
+
+def _scope_strategy_preflight(active_scope: dict[str, Any]) -> dict[str, Any]:
+    direct = active_scope.get("strategy_preflight")
+    if isinstance(direct, dict):
+        return direct
+    loop_decision = (
+        active_scope.get("loop_decision")
+        if isinstance(active_scope.get("loop_decision"), dict)
+        else {}
+    )
+    preflight = loop_decision.get("strategy_preflight")
+    return preflight if isinstance(preflight, dict) else {}
+
+
+def _scope_route_decision(active_scope: dict[str, Any]) -> dict[str, Any]:
+    loop_decision = (
+        active_scope.get("loop_decision")
+        if isinstance(active_scope.get("loop_decision"), dict)
+        else {}
+    )
+    route_decision = loop_decision.get("route_decision")
+    if isinstance(route_decision, dict):
+        return route_decision
+    return loop_decision
+
+
+def _history_route_authority(state: dict[str, Any]) -> str:
+    history = state.get("history") if isinstance(state.get("history"), list) else []
+    for entry in reversed(history):
+        if not isinstance(entry, dict):
+            continue
+        preflight = entry.get("strategy_preflight")
+        if isinstance(preflight, dict):
+            authority = _route_authority_from_mapping(preflight)
+            if authority:
+                return authority
+        decision = entry.get("route_decision")
+        if isinstance(decision, dict):
+            authority = _route_authority_from_mapping(decision)
+            if authority:
+                return authority
+    return ""
+
+
+def _current_route_authority(
+    root: Path,
+    state: dict[str, Any],
+    decision: dict[str, Any] | None = None,
+) -> dict[str, str]:
+    active_scope = _active_scope(root)
+    if active_scope:
+        preflight = _scope_strategy_preflight(active_scope)
+        authority = _route_authority_from_mapping(preflight)
+        if authority:
+            return {
+                "authority": authority,
+                "source": "active_scope_strategy_preflight",
+                "session_id": str(active_scope.get("session_id") or ""),
+            }
+        authority = _route_authority_from_mapping(_scope_route_decision(active_scope))
+        if authority:
+            return {
+                "authority": authority,
+                "source": "active_scope_loop_decision",
+                "session_id": str(active_scope.get("session_id") or ""),
+            }
+    if decision:
+        authority = _route_authority_read(decision)
+        if authority and authority not in {"not-evaluated", "not-applicable"}:
+            return {"authority": authority, "source": "current_decision", "session_id": ""}
+    history_authority = _history_route_authority(state)
+    if history_authority:
+        return {"authority": history_authority, "source": "loop_history", "session_id": ""}
+    return {"authority": "unavailable_fail_closed", "source": "none", "session_id": ""}
+
+
+def _latest_timestamped_entry(entries: list[Any], timestamp_field: str) -> dict[str, Any]:
+    latest: dict[str, Any] = {}
+    latest_dt: datetime | None = None
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        parsed = _parse_iso(str(entry.get(timestamp_field) or ""))
+        if latest_dt is None or (parsed is not None and parsed >= latest_dt):
+            latest = entry
+            latest_dt = parsed
+    return latest
+
+
+def _stage_evidence_value(entry: dict[str, Any], field_name: str) -> Any:
+    value = entry.get(field_name)
+    if field_name == "dependency_summary_refs":
+        return [str(item) for item in value] if isinstance(value, list) else []
+    return str(value or "")
+
+
+def _stage_summary_matches_spawn(
+    latest_spawn: dict[str, Any],
+    latest_summary: dict[str, Any],
+) -> bool:
+    for field_name in (
+        "run_id",
+        "stage_id",
+        "subagent_type",
+        "trigger",
+        "role_hint",
+        "dependency_summary_refs",
+    ):
+        spawn_value = _stage_evidence_value(latest_spawn, field_name)
+        summary_value = _stage_evidence_value(latest_summary, field_name)
+        if (spawn_value or summary_value) and spawn_value != summary_value:
+            return False
+    return True
+
+
+def _stage_summary_is_blocking(summary_status: str, summary_disposition: str) -> bool:
+    if summary_status in {"blocked", "needs-input"}:
+        return True
+    return summary_status == "complete" and (
+        summary_disposition not in NONBLOCKING_STAGE_SUMMARY_DISPOSITIONS
+    )
+
+
+def _stage_state_from_evidence(
+    *,
+    stage_id: str,
+    active_stage_id: str,
+    completed_stage_ids: set[str],
+    spawns: list[Any],
+    summaries: list[Any],
+) -> dict[str, Any]:
+    stage_spawns = [
+        item for item in spawns if isinstance(item, dict) and item.get("stage_id") == stage_id
+    ]
+    stage_summaries = [
+        item for item in summaries if isinstance(item, dict) and item.get("stage_id") == stage_id
+    ]
+    latest_spawn = _latest_timestamped_entry(stage_spawns, "spawned_at")
+    latest_summary = _latest_timestamped_entry(stage_summaries, "summary_recorded_at")
+    completed_declared = stage_id in completed_stage_ids
+    summary_status = str(latest_summary.get("summary_status") or "")
+    summary_disposition = str(latest_summary.get("summary_disposition") or "")
+    latest_spawned_at = str(latest_spawn.get("spawned_at") or "")
+    latest_summary_recorded_at = str(latest_summary.get("summary_recorded_at") or "")
+    spawn_dt = _parse_iso(latest_spawned_at)
+    summary_dt = _parse_iso(latest_summary_recorded_at)
+    summary_is_fresh = bool(
+        latest_spawn and latest_summary and spawn_dt and summary_dt and summary_dt >= spawn_dt
+    )
+    metadata_paired = bool(
+        latest_spawn
+        and latest_summary
+        and _stage_summary_matches_spawn(latest_spawn, latest_summary)
+    )
+    summary_counts_for_completion = bool(summary_is_fresh and metadata_paired)
+    if latest_summary and not summary_counts_for_completion:
+        state = "summary_mismatch_or_stale"
+    elif latest_summary and _stage_summary_is_blocking(summary_status, summary_disposition):
+        state = "summary_blocking"
+    elif summary_counts_for_completion and summary_status == "complete":
+        state = "complete_with_paired_evidence"
+    elif latest_spawn:
+        state = "in_progress_pending_summary"
+    elif completed_declared:
+        state = "completion_unverified"
+    else:
+        state = "not_started"
+    return {
+        "stage_id": stage_id,
+        "state": state,
+        "spawn_recorded": bool(latest_spawn),
+        "summary_recorded": bool(latest_summary),
+        "completed_declared": completed_declared,
+        "latest_spawned_at": latest_spawned_at,
+        "latest_summary_recorded_at": latest_summary_recorded_at,
+        "summary_status": summary_status,
+        "summary_disposition": summary_disposition,
+        "summary_fresh_for_latest_spawn": summary_is_fresh,
+        "summary_metadata_paired": metadata_paired,
+        "summary_counts_for_completion": summary_counts_for_completion,
+    }
+
+
+def _stage_evidence_states(root: Path, state: dict[str, Any]) -> dict[str, Any]:
+    ledger = _load_yaml_mapping(root / ".azoth/run-ledger.local.yaml")
+    runs = ledger.get("runs") if isinstance(ledger.get("runs"), list) else []
+    if not runs:
+        return {"run_id": "", "status": "unavailable_missing_run", "stages": []}
+    active_scope_id = str(_active_scope(root).get("session_id") or "")
+    last_session_id = str(state.get("last_session_id") or "")
+    selected: dict[str, Any] = {}
+    for run in runs:
+        if not isinstance(run, dict):
+            continue
+        run_id = str(run.get("run_id") or "")
+        if run_id and run_id in {active_scope_id, last_session_id}:
+            selected = run
+            break
+    if not selected:
+        selected = next(
+            (
+                run
+                for run in reversed(runs)
+                if isinstance(run, dict) and str(run.get("mode") or "") == "autonomous-auto"
+            ),
+            {},
+        )
+    if not selected:
+        return {"run_id": "", "status": "unavailable_missing_run", "stages": []}
+    stage_ids: list[str] = []
+    for field in ("pending_stage_ids", "stages_completed"):
+        values = selected.get(field)
+        if isinstance(values, list):
+            stage_ids.extend(str(item) for item in values if str(item or "").strip())
+    stage_policy = selected.get("stage_evidence_policy")
+    if isinstance(stage_policy, dict):
+        stage_ids.extend(str(stage_id) for stage_id in stage_policy if str(stage_id).strip())
+    active_stage_id = str(selected.get("active_stage_id") or "")
+    if active_stage_id:
+        stage_ids.append(active_stage_id)
+    spawns = selected.get("stage_spawns") if isinstance(selected.get("stage_spawns"), list) else []
+    summaries = (
+        selected.get("stage_summaries") if isinstance(selected.get("stage_summaries"), list) else []
+    )
+    for evidence in [*spawns, *summaries]:
+        if isinstance(evidence, dict) and str(evidence.get("stage_id") or "").strip():
+            stage_ids.append(str(evidence.get("stage_id")))
+    ordered_stage_ids = list(dict.fromkeys(stage_ids))
+    completed_stage_ids = (
+        {str(item) for item in selected.get("stages_completed", []) if str(item or "").strip()}
+        if isinstance(selected.get("stages_completed"), list)
+        else set()
+    )
+    return {
+        "run_id": str(selected.get("run_id") or ""),
+        "status": str(selected.get("status") or ""),
+        "active_stage_id": active_stage_id,
+        "stages": [
+            _stage_state_from_evidence(
+                stage_id=stage_id,
+                active_stage_id=active_stage_id,
+                completed_stage_ids=completed_stage_ids,
+                spawns=spawns,
+                summaries=summaries,
+            )
+            for stage_id in ordered_stage_ids
+        ],
+    }
+
+
+def _historical_handoff_read(
+    handoff_campaign: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    historical = {
+        "observable": bool(handoff_campaign.get("observable")),
+        "path": str(handoff_campaign.get("path") or ""),
+        "completion_reason": str(handoff_campaign.get("completion_reason") or ""),
+        "vision_band": str(handoff_campaign.get("vision_band") or ""),
+        "known_residuals": handoff_campaign.get("known_residuals")
+        if isinstance(handoff_campaign.get("known_residuals"), list)
+        else [],
+        "display_only": True,
+        "can_authorize_current_route": False,
+        "can_open_auto_self_heal_now": False,
+        "can_set_next_safe_action": False,
+    }
+    authority = {
+        "authority": "historical_display_only"
+        if historical["observable"]
+        else "missing_historical_handoff",
+        "current_authority": False,
+        "reason": (
+            "handoff evidence describes a prior campaign and cannot authorize current loop action"
+            if historical["observable"]
+            else str(handoff_campaign.get("failure_reason") or "missing_handoff")
+        ),
+    }
+    return historical, authority
+
+
+def _structured_residual_risks(
+    *,
+    observation: dict[str, Any],
+    current_route_authority: dict[str, str],
+    stage_evidence: dict[str, Any],
+    historical_handoff_authority: dict[str, Any],
+) -> list[dict[str, str]]:
+    risks: list[dict[str, str]] = []
+    if observation.get("fresh_budget_required"):
+        risks.append(
+            {
+                "risk": "fresh_budget_required",
+                "basis": str(observation.get("reason") or "campaign report observation"),
+                "mitigation": "Require explicit current loop authority before opening more work.",
+            }
+        )
+    if current_route_authority.get("authority") == "unavailable_fail_closed":
+        risks.append(
+            {
+                "risk": "current_route_authority_unavailable_fail_closed",
+                "basis": str(current_route_authority.get("source") or "none"),
+                "mitigation": "Run route preflight or recover route authority from active scope/history.",
+            }
+        )
+    for stage in stage_evidence.get("stages") or []:
+        if not isinstance(stage, dict):
+            continue
+        if stage.get("state") == "in_progress_pending_summary":
+            risks.append(
+                {
+                    "risk": "stage_spawn_pending_summary",
+                    "basis": str(stage.get("stage_id") or ""),
+                    "mitigation": "Record stage summary before treating the stage as complete.",
+                }
+            )
+    if historical_handoff_authority.get("current_authority") is False:
+        risks.append(
+            {
+                "risk": "historical_handoff_display_only",
+                "basis": str(historical_handoff_authority.get("reason") or ""),
+                "mitigation": "Do not convert historical handoff evidence into current authority.",
+            }
+        )
+    return risks
+
+
 def campaign_report(
     root: Path,
     state_path: Path,
@@ -3086,6 +3537,13 @@ def campaign_report(
         resolved_handoff = root / resolved_handoff
     handoff_campaign = _parse_handoff_campaign(resolved_handoff)
     state_snapshot, state_error = _safe_state_snapshot(state_path)
+    current_operator_read = (
+        operator_read(root, state_path)
+        if current_loop.get("observable") and include_next_campaign_recommendation
+        else {}
+    )
+    if current_operator_read:
+        current_loop["operator_read"] = current_operator_read
     learning_harvester: dict[str, Any] = {}
     loop_id = str(state_snapshot.get("loop_id") or "")
     if loop_id and not state_error:
@@ -3110,25 +3568,53 @@ def campaign_report(
     vision_realized = completion_reason == "vision_realized"
     observed_old_campaign = bool(handoff_campaign.get("observable"))
     ambiguous_observation = observed_old_campaign and not completion_reason
+    observation = {
+        "fresh_budget_required": bool(
+            fail_closed or observed_old_campaign or ambiguous_observation
+        ),
+        "safe_to_continue_old_campaign": False,
+        "reason": "vision_realized"
+        if vision_realized
+        else "fail_closed"
+        if fail_closed
+        else "missing_completion_reason"
+        if ambiguous_observation
+        else "handoff_observed",
+    }
+    current_route_authority = _current_route_authority(root, state_snapshot)
+    operator_route_authority = str(current_operator_read.get("route_authority") or "")
+    if (
+        current_route_authority.get("authority") == "unavailable_fail_closed"
+        and operator_route_authority
+        and operator_route_authority != "unavailable_fail_closed"
+    ):
+        current_route_authority = {
+            "authority": operator_route_authority,
+            "source": str(
+                current_operator_read.get("route_authority_source")
+                or "operator_read_current_decision"
+            ),
+            "session_id": "",
+        }
+    stage_evidence = _stage_evidence_states(root, state_snapshot)
+    historical_handoff, historical_handoff_authority = _historical_handoff_read(handoff_campaign)
     return {
         "report_schema_version": 1,
         "current_loop": current_loop,
         "handoff_campaign": handoff_campaign,
         "learning_harvester": learning_harvester,
         "next_campaign_recommendation": current_loop.get("next_campaign_recommendation", {}),
-        "observation": {
-            "fresh_budget_required": bool(
-                fail_closed or observed_old_campaign or ambiguous_observation
-            ),
-            "safe_to_continue_old_campaign": False,
-            "reason": "vision_realized"
-            if vision_realized
-            else "fail_closed"
-            if fail_closed
-            else "missing_completion_reason"
-            if ambiguous_observation
-            else "handoff_observed",
-        },
+        "current_route_authority": current_route_authority,
+        "stage_evidence_states": stage_evidence,
+        "structured_residual_risks": _structured_residual_risks(
+            observation=observation,
+            current_route_authority=current_route_authority,
+            stage_evidence=stage_evidence,
+            historical_handoff_authority=historical_handoff_authority,
+        ),
+        "historical_handoff": historical_handoff,
+        "historical_handoff_authority": historical_handoff_authority,
+        "observation": observation,
     }
 
 
@@ -3182,7 +3668,7 @@ def _safe_operator_read(root: Path, state_path: Path) -> dict[str, Any]:
             "remaining_iterations": 0,
             "can_continue": False,
             "next_likely_move": "blocked: malformed_loop_state",
-            "route_authority": "not-evaluated",
+            "route_authority": "unavailable_fail_closed",
             "approval_basis": "",
             "pending_alignment_packets": 0,
             "latest_alignment_packet": "",
@@ -3482,14 +3968,30 @@ def _candidate_hydrated_task_ref(candidate: dict[str, Any]) -> str:
     return str(hydration_plan.get("hydrated_task_ref") or candidate.get("proposed_task_id") or "")
 
 
-def _candidate_hydrated_spec_ref(candidate: dict[str, Any], task_ref: str) -> str:
+def _safe_roadmap_spec_ref(raw: Any) -> str:
+    value = str(raw or "").strip()
+    if not value:
+        return ""
+    path = Path(value)
+    if path.is_absolute() or ".." in path.parts:
+        return ""
+    if len(path.parts) < 4 or path.parts[:2] != (".azoth", "roadmap-specs"):
+        return ""
+    return path.as_posix()
+
+
+def _candidate_hydrated_spec_ref(
+    root: Path,
+    candidate: dict[str, Any],
+    task_ref: str,
+) -> str:
     hydration_plan = (
         candidate.get("hydration_plan") if isinstance(candidate.get("hydration_plan"), dict) else {}
     )
     if hydration_plan.get("hydrated_spec_ref"):
-        return str(hydration_plan.get("hydrated_spec_ref"))
+        return _safe_roadmap_spec_ref(hydration_plan.get("hydrated_spec_ref"))
     if task_ref:
-        return f".azoth/roadmap-specs/v0.2.0/{task_ref}.yaml"
+        return _active_spec_ref(root, f"{task_ref}.yaml")
     return ""
 
 
@@ -3535,7 +4037,7 @@ def _candidate_slice_rows(root: Path, doc: dict[str, Any]) -> list[dict[str, Any
                 "initiative_ref": str(candidate.get("initiative_ref") or ""),
                 "status": status or "missing",
                 "hydrated_task_ref": task_ref,
-                "hydrated_spec_ref": _candidate_hydrated_spec_ref(candidate, task_ref),
+                "hydrated_spec_ref": _candidate_hydrated_spec_ref(root, candidate, task_ref),
                 "target_layer": str(candidate.get("target_layer") or ""),
                 "delivery_pipeline": str(candidate.get("delivery_pipeline") or ""),
                 "planning_vs_executable_status": _candidate_planning_vs_executable_status(
@@ -4005,9 +4507,7 @@ def _hydrated_task_artifacts_exist(root: Path, task_ref: str) -> bool:
     task_id = str(task_ref or "").strip()
     if not task_id:
         return False
-    spec_path = root / ".azoth" / "roadmap-specs" / "v0.2.0" / f"{task_id}.yaml"
-    if not spec_path.exists():
-        return False
+    spec_refs: set[str] = set()
     for rel_path in (".azoth/roadmap.yaml", ".azoth/backlog.yaml"):
         path = root / rel_path
         if not path.exists():
@@ -4015,7 +4515,15 @@ def _hydrated_task_artifacts_exist(root: Path, task_ref: str) -> bool:
         data = safe_load_yaml_path(path)
         if not _yaml_tree_contains_task_ref(data, task_id):
             return False
-    return True
+        for node in _yaml_tree_matching_task_nodes(data, task_id):
+            spec_ref = _safe_roadmap_spec_ref(node.get("spec_ref"))
+            if spec_ref:
+                spec_refs.add(spec_ref)
+    if not spec_refs:
+        active_ref = _active_spec_ref(root, f"{task_id}.yaml")
+        if active_ref:
+            spec_refs.add(active_ref)
+    return any((root / spec_ref).is_file() for spec_ref in spec_refs)
 
 
 def _high_severity_quality_signal(report: dict[str, Any]) -> dict[str, str] | None:
@@ -4459,7 +4967,8 @@ def _route_decision_from_lifecycle_report(root: Path, report: dict[str, Any]) ->
             "scaffold_command": readiness.get("scaffold_command"),
         },
         "ux_anchor_rationale": {
-            "anchor": DEFAULT_VISION_ANCHOR,
+            "anchor": _optional_vision_anchor(root) or None,
+            "anchor_required": False,
             "route_basis": ux_basis,
         },
         "protected_stops": protected_stops,
@@ -4914,7 +5423,8 @@ def init_loop(
             }
         ],
         "vision": {
-            "anchor": DEFAULT_VISION_ANCHOR,
+            "anchor": _optional_vision_anchor(root),
+            "anchor_required": False,
             "target_band": DEFAULT_VISION_TARGET_BAND,
             "current_band": "unevaluated",
             "realized": False,
@@ -4977,7 +5487,8 @@ def record_vision_score(
     realized = VISION_BANDS[normalized_band] >= VISION_BANDS[target_band]
     vision.update(
         {
-            "anchor": str(vision.get("anchor") or DEFAULT_VISION_ANCHOR),
+            "anchor": str(vision.get("anchor") or ""),
+            "anchor_required": False,
             "target_band": target_band,
             "current_band": normalized_band,
             "realized": realized,
@@ -5085,6 +5596,7 @@ def open_next(
             ide="codex",
             active_stage_id=stage_ids[0] if stage_ids else None,
             pending_stage_ids=stage_ids or None,
+            stage_evidence_policy=delegation_plan.get("stage_evidence_policy") or None,
         )
     except Exception:
         release_write_claim(root, session_id)
@@ -5238,6 +5750,7 @@ def operator_read(root: Path, state_path: Path) -> dict[str, Any]:
     elif status.get("stop_reason"):
         next_move = f"blocked: {status.get('stop_reason')}"
     continuation = _continuation_summary(state, status, decision)
+    route_authority = _current_route_authority(root, state, decision)
     vision = status.get("vision", {})
     write_claim = status.get("write_claim") if isinstance(status.get("write_claim"), dict) else {}
     write_claim_read = (
@@ -5266,7 +5779,8 @@ def operator_read(root: Path, state_path: Path) -> dict[str, Any]:
         "remaining_iterations": status.get("remaining_iterations"),
         "can_continue": status.get("can_continue"),
         "next_likely_move": next_move,
-        "route_authority": _route_authority_read(decision) if decision else "not-evaluated",
+        "route_authority": route_authority["authority"],
+        "route_authority_source": route_authority["source"],
         "approval_basis": _approval_basis(state) if state else "",
         "pending_alignment_packets": status.get("alignment", {}).get("pending_count", 0),
         "latest_alignment_packet": status.get("alignment", {}).get("latest_packet_id", ""),
