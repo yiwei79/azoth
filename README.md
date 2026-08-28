@@ -1,229 +1,172 @@
 # Azoth
 
-**A personal agentic-engineering project for governed AI-assisted software
-delivery.**
+**A personal agent-engineering project about carrying intent through complex,
+AI-assisted work.**
 
-Azoth explores a practical question: how should AI coding agents be engineered
-when they are programmable probabilistic components inside a larger system,
-rather than copilots or simulated employees? It connects intent to compact
-context, bounded tools, explicit authority, evidence, stopping, and recovery so
-agent-assisted work can remain useful without becoming unbounded.
+If a model call or coding thread is only a bounded episode of work, where does
+the durable intelligence of the larger effort live?
 
-Azoth is my independent project. `v0.3.0-rc.1` is the latest implemented
-snapshot of that exploration, focused on Personal Harness OS. It is an
-unfinished release candidate, not a finished universal harness or an external
-adoption claim.
+Azoth explores that question by treating purpose, project meaning, evidence,
+decisions, authority, recovery, and observed outcomes as persistent system
+state. A thread can then do focused work without also pretending to be the
+plan, memory, policy, and history of the whole effort.
 
-## Personal Harness OS preview
+The intended experience is to state an outcome once, then let the system expose
+missing knowledge, form and route bounded work, return evidence, and stop at the
+decisions that still require human meaning or authority. The evidence bands
+below separate what is portable today from what has been observed only in the
+root workshop and what remains a working direction.
 
-Personal Harness OS keeps ordinary work lightweight and escalates consequential
-work into explicit context, authority, evidence, stopping, and recovery
-boundaries. It routes by intended effect and risk—not by personified employee
-roles.
+> **A thread is a bounded work pulse. It reads from a durable intent anchor,
+> changes or investigates a limited part of the work, and returns evidence for
+> the next safe transition.**
 
-Personal Harness OS is built around three portable contracts:
+This raises a deliberately open question: if continuity and useful intelligence
+are distributed across intent, state, people, tools, evidence, and work pulses,
+is any one thread really the agent? Azoth uses “the system as agent” only as an
+analogy. The durable whole does not yet have a settled name here.
 
-| Contract | Purpose |
-|---|---|
-| `HarnessRequest` → `HarnessDecision` | `classify_harness_request` selects a `profile` of `guide`, `assisted`, `managed`, or `governed_autonomy` from intended effects and risk |
-| `RouteCapsule` | Exposes route state, required authority, inputs, next safe action, and stop reason |
-| Context-view packet | `build_context_view` pulls compact approved summaries and source pointers without dumping raw memory |
-
-The design uses the smallest architecture that preserves the controls a task
-actually needs. Retrieval, durable memory, or multi-agent coordination are
-added only when a demonstrated failure mode justifies their cost.
-
-**Implemented in this RC:** deterministic request classification, typed
-route packets, bounded context assembly, a generic no-write rehearsal runner
-and fixture, and 30 passing portable public tests. Private operator state and
-environment-specific adapters remain excluded, and the wider profile remains
-under development.
-
-### Core control loop
+## Azoth in one view
 
 ```mermaid
-flowchart LR
-    A["Business intent + success envelope"] --> B["Context and state"]
-    B --> C["Probabilistic agent + deterministic tools"]
-    C --> D["Bounded action"]
-    D --> E["Observed outcome"]
-    E --> F["Evaluation and evidence"]
-    F --> G{"Correct, stop, or recover"}
-    G --> B
-    H["Protected human authority"] -.-> D
-    H -.-> G
+flowchart TB
+    D["Durable continuity<br/>persistent intent anchor<br/>+ meaning · decisions · authority · evidence · outcome state"]
+    P["Bounded work pulse<br/>model · tools · human collaboration"]
+    E["Observed effect + evaluation<br/>artifact · changed state · next safe transition"]
+    H["Human authority<br/>meaning · risk · consequential action"]
+
+    D -->|scope + context| P
+    P -->|artifact + evidence| E
+    E -->|continue · correct · recover · stop · redefine| D
+    H -.-> D
+    H -.-> E
 ```
 
-Protected human authority governs consequential action, correction, recovery,
-and release decisions. This is an engineering lens, not a formal control-theory
-claim or a measured signal-to-noise model.
+What propagates through this loop is not merely text or code. **Alignment
+signal** is shorthand for the traceable relationship between current intent and
+each intermediate representation, action, item of evidence, and observed
+outcome. That relationship can strengthen, degrade, or reveal that the intent
+anchor itself needs revision. It is a working engineering metaphor, not a
+formal measurement.
 
-- [Engineering case study: *Narrow Success, Broad Failure*](docs/case-studies/narrow-success-broad-failure.md)
-- [Personal Harness contracts and preview boundary](docs/PERSONAL_HARNESS_OS.md)
+## Explore the project
 
-## How the project fits together
-
-Azoth is one evolving project, not a collection of separate products. The
-repository preserves both the current minimum-sufficient direction and the
-broader framework that preceded it:
-
-| Surface | Role in the project |
+| If you want to understand… | Continue with… |
 |---|---|
-| Personal Harness OS | The current direction and the focus of `v0.3.0-rc.1` |
-| Routing, context, rehearsal, and focused tests | The validated release surface for this RC |
-| Kernel, skills, agents, commands, and pipelines | The broader governed toolkit and design history from which the lighter path emerged |
-| *Narrow Success, Broad Failure* | The case study explaining the architectural evolution and its trade-offs |
+| **Experience and evidence** | [*Narrow Success, Broad Failure*](docs/case-studies/narrow-success-broad-failure.md), a braided account of the projects, engineering value, framework growth, and contraction that exposed the problem |
+| **Working thesis** | [*Intent-to-Outcome Engineering*](docs/INTENT_TO_OUTCOME_ENGINEERING.md), the evolving argument about work pulses, durable system intelligence, feedback, authority, and open research questions |
+| **Executable proof** | [Routing, Context, and Authority](docs/PERSONAL_HARNESS_OS.md), the current operator experience and the exact boundary of the tested public slice |
+| **Source and architecture history** | [Architecture overview](docs/AZOTH_ARCHITECTURE.md), [decision index](docs/DECISIONS_INDEX.md), and [current proof paths](#inspect-the-current-proof) |
 
-The wider repository remains useful for inspection and continued development,
-but this release validates only the selected Personal Harness contracts and
-tests described above.
+## From intent to governed work
 
-## Why Azoth
+Across the wider Azoth workshop, an operator can assemble a sequence like this
+from separate capabilities:
 
-AI-assisted development often fails in predictable ways: each session starts
-without context, useful lessons remain trapped in chat history, agents expand
-scope silently, platform-specific instructions drift apart, and review happens
-too late. Azoth addresses those failure modes through a small set of durable
-design decisions:
+`intent intake → discovery seed → research sufficiency → initiative / roadmap /
+task formation → routed work pulse → evidence ledger → independent evaluation
+→ bounded replay or next safe transition → closeout`
 
-- **One governed operating model:** define shared rules once, then represent
-  them through host-specific adapters.
-- **Bounded autonomy:** agents can move quickly inside explicit trust,
-  scope, approval, checkpoint, and recovery boundaries.
-- **Memory with promotion:** retain episodes, promote only reinforced patterns,
-  and keep durable instructions under human control.
-- **Goal-aware execution:** use lightweight work for simple tasks and staged
-  delivery pipelines when the work warrants more review.
-- **Honest portability:** preserve shared semantics where a host can enforce
-  them, and document degradation where it cannot.
+This is neither one opaque autonomous pipeline nor one fully integrated public
+product. Each transition can expose its inputs, evidence, authority, and
+stopping reason. Research can be required before a task is hydrated. An
+evaluator can reject incomplete stage evidence. A repair can replay within a
+declared budget. Protected actions remain closed until a human authorizes the
+specific effect.
 
-## How a governed session works
+The public story therefore has three evidence bands:
 
-Azoth turns a session into a small, inspectable delivery loop:
+### Portable proof
 
-```text
-Activate -> Survey -> Operate -> Harden
-   |           |          |         |
-   |           |          |         +-- verify, checkpoint, retain lessons
-   |           |          +------------ work within scoped trust boundaries
-   |           +----------------------- inspect project state and relevant memory
-   +----------------------------------- load the kernel and project contract
-```
+The extracted `v0.3.0-rc.2` candidate implements and tests deterministic
+effect-aware routing, compact source-referenced context, explicit authority and
+stopping state, and a four-case no-write rehearsal. Thirty portable tests cover
+that selected surface.
 
-The workflow is backed by four safeguards:
+### Root workshop evidence
 
-1. **Scope before change.** Map the task and its blast radius before editing.
-2. **Trust-aware action.** Separate actions that may proceed, need approval,
-   or must never run automatically.
-3. **Meaningful human gates.** Require a human decision when risk, governance,
-   or scope expansion makes it valuable.
-4. **Recovery by design.** Use checkpoints and Git-based recovery rather than
-   treating a failed autonomous run as irreversible.
+The wider source repository contains separate, inspectable machinery for raw
+initiative intake, research-sufficiency checks, proposal knowledge assessment,
+initiative and roadmap scaffolding, durable run ledgers, campaign routing,
+stage evidence, evaluation, and bounded replay. Root-only campaign receipts
+show these parts being used in multi-stage product-strategy, operating-profile,
+and route-repair work.
 
-For the precise contract, see the [Trust Contract](kernel/TRUST_CONTRACT.md)
-and [gate protocol](docs/GATE_PROTOCOL.md).
+Those capabilities are real, but they are not exported as one validated public
+product journey. The [executable proof](docs/PERSONAL_HARNESS_OS.md) keeps the
+difference visible.
 
-## Architecture at a glance
+### Working direction
 
-Azoth uses a four-layer model. The lower layers are deliberately stable; the
-upper layers are allowed to adapt to the project and goal.
+Azoth is moving toward a system that can carry an outcome across many work
+pulses: refine intent, discover missing knowledge, form and re-form work,
+select the smallest sufficient composition, evaluate what happened, learn
+externally to any one model context, and stop honestly at human authority.
 
-```text
-CURRENT  - Orchestration and delivery
-           Commands, pipeline presets, coordination, final delivery
-                 ↑
-WAVE     - Agents and capabilities
-           Role-specific agents, skills, evaluators, domain additions
-                 ↑
-MINERAL  - Portable knowledge and tools
-           Reusable skills, memory, prompts, evaluation rubrics
-                 ↑
-MOLECULE - Invariant kernel
-           Bootloader, trust contract, governance, promotion rules
-```
+That direction is a working thesis, not a completion claim.
 
-The model prevents two opposite failures: an immutable framework that cannot
-adapt, and a fully emergent agent system that slowly loses its standards.
+## How this inquiry emerged
 
-| Layer | What it owns | Change posture |
+The starting point was operational-data work: fragmented reporting semantics
+could not survive a mechanical platform migration. Recovering business meaning
+required traceable evidence, explicit acceptance contracts, staged
+publication, independent readback, and recovery.
+
+Reusing that discipline for local data requests showed that the coordination
+pattern could transfer while project meaning could not. A shared internal
+framework then explored project-local learning, reviewed promotion,
+specialized roles, typed handoffs, and adaptive pipelines. When the framework
+began duplicating state and consuming more attention than some tasks required,
+architectural contraction revealed which controls had actually earned their
+place.
+
+A later conversational-agent operations system applied related lessons to a
+different problem: versioned business meaning, deterministic policy,
+behavioral tests, provider projection, authority gates, continuity, and
+reconciliation. It is an individual production-system case, not a deployment
+or ideal realization of Azoth.
+
+Azoth is the independent project where these recurring engineering questions
+became an explicit inquiry. The [case study](docs/case-studies/narrow-success-broad-failure.md)
+holds the grounded chronology; the [thesis](docs/INTENT_TO_OUTCOME_ENGINEERING.md)
+develops the broader model.
+
+## Claim boundary
+
+| Surface | Status | Inspect |
 |---|---|---|
-| Molecule | Core identity, trust boundaries, governance and promotion rules | Human-approved only |
-| Mineral | Portable knowledge, reusable skills and memory mechanisms | Stable and refinable |
-| Wave | Agents and specialised capabilities | Emerges when useful; retained when proven |
-| Current | Goal-specific commands and delivery flows | Created and adjusted per goal |
+| Effect-aware routing and typed route state | **Portable proof:** implemented and tested in the candidate | [`scripts/harness_profile.py`](scripts/harness_profile.py) |
+| Compact, provenance-preserving context assembly | **Portable proof:** implemented and tested in the candidate | [`scripts/context_view.py`](scripts/context_view.py), [`scripts/personal_harness_context.py`](scripts/personal_harness_context.py) |
+| Read-only behavioral rehearsal | **Portable proof:** implemented and tested in the candidate | [runner](scripts/personal_harness_practice_rehearsal.py), [cases](examples/personal-harness/rehearsal-cases.yaml), [tests](tests/test_personal_harness_practice_rehearsal.py) |
+| Initiative discovery, research sufficiency, roadmap formation, ledgers, and campaign control | **Root workshop evidence:** separate capabilities and observed campaigns; not one extracted product journey | [`scripts/initiative_intake.py`](scripts/initiative_intake.py), [`scripts/research_sufficiency.py`](scripts/research_sufficiency.py), [`scripts/roadmap_scaffold.py`](scripts/roadmap_scaffold.py), [`scripts/run_ledger.py`](scripts/run_ledger.py), [`scripts/autonomous_loop.py`](scripts/autonomous_loop.py) |
+| Intent-to-outcome engineering | **Working direction:** qualified thesis, not fully implemented | [thesis](docs/INTENT_TO_OUTCOME_ENGINEERING.md) |
+| Historical employer projects and internal framework | Experience and repository-grounded evidence; not Azoth deployment evidence | [case study](docs/case-studies/narrow-success-broad-failure.md) |
+| External adoption or production deployment of Azoth | Not claimed | [preview boundary](docs/PERSONAL_HARNESS_OS.md#public-preview-boundary) |
 
-Read the full design rationale in [the architecture guide](docs/AZOTH_ARCHITECTURE.md).
+## Inspect the current proof
 
-## Memory that improves without silently rewriting policy
+- [Routing](scripts/harness_profile.py) — deterministic effect and authority
+  classification.
+- [Context assembly](scripts/personal_harness_context.py) — compact,
+  source-referenced packets.
+- [No-write rehearsal](scripts/personal_harness_practice_rehearsal.py) — shared
+  code exercised against representative cases.
+- [Portable tests](tests/test_personal_harness_practice_rehearsal.py) —
+  behavioral and mutation-detection evidence.
+- [Research sufficiency](scripts/research_sufficiency.py) and [knowledge
+  richness](scripts/proposal_knowledge_richness.py) — wider root-workshop
+  checks, outside the narrow portable claim.
+- [Trust Contract](kernel/TRUST_CONTRACT.md) — protected authority and action
+  boundaries.
+- [Architecture decisions](docs/DECISIONS_INDEX.md) — decision records and
+  implementation status.
 
-Azoth separates transient experience from durable operating rules:
-
-```text
-Episodes -> candidate patterns -> human-approved durable knowledge -> skills and instructions
-   M3              M2                         promotion                         M1
-```
-
-- **Episodes** capture what happened during work.
-- **Patterns** preserve lessons that recur and remain useful.
-- **Skills and instructions** hold durable procedures only after promotion.
-
-This design keeps the system capable of learning while preventing one-off
-outputs, stale preferences, or model mistakes from becoming permanent policy.
-See [governance](kernel/GOVERNANCE.md), the [promotion rubric](kernel/PROMOTION_RUBRIC.md),
-and [architecture details](docs/AZOTH_ARCHITECTURE.md#5-layer-1-minerals-portable-knowledge).
-
-## Platforms and portability
-
-Azoth is protocol-first. Its core governance and workflow semantics live in
-portable source files; adapters represent them through different host
-conventions. In this RC, those surfaces are inspectable design artifacts;
-cross-host parity and supported adoption are outside the preview boundary.
-
-- [Co-primary platform blueprint](docs/CO_PRIMARY_PLATFORM_BLUEPRINT.md)
-- [Platform adapters](kernel/templates/platform-adapters/)
-- [Adapter projection source](scripts/azoth-deploy.py)
-
-## What is included
-
-| Surface | Purpose |
-|---|---|
-| [`kernel/`](kernel/) | Bootloader, trust contract, governance, promotion rules |
-| [`skills/`](skills/) | Reusable procedures for planning, memory, evaluation, routing and delivery |
-| [`agents/`](agents/) | Role-based agent definitions and capability boundaries |
-| [`commands/`](commands/) | Human-facing entry points for sessions, planning, delivery and review |
-| [`pipelines/`](pipelines/) | Declarative delivery presets and staged orchestration |
-| [`docs/`](docs/) | Architecture, decisions, platform strategy and protocols |
-| [`scripts/`](scripts/) | Routing, context, validation, checkpoint and support utilities |
-| [`examples/personal-harness/`](examples/personal-harness/) | Portable no-write rehearsal cases |
-| [Focused public tests](tests/test_personal_harness_practice_rehearsal.py) | Routing, context, recall/review and rehearsal contract coverage |
-
-## Inspect the preview
-
-`v0.3.0-rc.1` is presented for source inspection and local experimentation, not
-as a supported installation or adoption path. Installer surfaces remain under
-development and are not a validated entrypoint for this preview.
-
-- [Routing and authority contracts](scripts/harness_profile.py)
-- [Bounded context assembly](scripts/personal_harness_context.py)
-- [No-write rehearsal runner](scripts/personal_harness_practice_rehearsal.py)
-- [Rehearsal fixture](examples/personal-harness/rehearsal-cases.yaml)
-- [Focused rehearsal tests](tests/test_personal_harness_practice_rehearsal.py)
-
-## Start exploring
-
-- Want the conceptual model? Start with the [architecture guide](docs/AZOTH_ARCHITECTURE.md).
-- Want the design record? Browse the [architecture decisions index](docs/DECISIONS_INDEX.md).
-- Want safety and autonomy rules? Read the [Trust Contract](kernel/TRUST_CONTRACT.md).
-- Want to understand host differences? Read the [co-primary platform blueprint](docs/CO_PRIMARY_PLATFORM_BLUEPRINT.md).
-- Want to inspect or extend it? Start with [`commands/`](commands/) and [`skills/`](skills/).
-
-## Boundaries and status
-
-Azoth is an evolving toolkit. Some pipeline and memory-promotion capabilities
-are intentionally staged or partial; the [decisions index](docs/DECISIONS_INDEX.md)
-tracks implementation status. It is designed for governed AI-assisted delivery,
-not as a claim of universal autonomy, identical enforcement across every host,
-or a substitute for human engineering judgment.
+The thesis relies on Git for revision history rather than adding another
+changelog. Installer completeness, cross-host parity, package distribution,
+and production adoption remain outside the `v0.3.0-rc.2` validation
+boundary. Existing tags remain immutable. Publication requires review of the
+exact extracted tree and explicit human approval for its public commit, tag,
+push, and release.
 
 ## License
 

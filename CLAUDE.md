@@ -52,7 +52,7 @@ and routing options (next task, intake, promote, eval, or custom goal).
 
 ## Installed Azoth Components
 
-- Kernel: v0.3.0-rc.1
+- Kernel: v0.3.0-rc.2
 - Skills: see skills/
 - Agents: see agents/
 - Pipeline presets: see pipelines/
