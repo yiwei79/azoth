@@ -1,11 +1,11 @@
 schema_version: 1
 name: azoth
-version: 0.3.0-rc.2
+version: 0.3.0-rc.3
 description: An inspectable toolkit for governed AI-assisted software delivery
 release_channel: preview
 provenance:
   source_delivery_version: 0.2.1.0
-  source_revision: 9824b6cf6c76673582b3aa8f408377e1210e5e5e
+  source_revision: ae15417f493983dcda495981ced99bfbcdd06e8b
 scope:
   mode: product
   is_development_workshop: false

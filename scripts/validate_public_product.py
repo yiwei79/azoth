@@ -12,7 +12,7 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parent.parent
-EXPECTED_VERSION = "0.3.0-rc.2"
+EXPECTED_VERSION = "0.3.0-rc.3"
 EXPECTED_CHANNEL = "preview"
 EXPECTED_TEST_PATHS = """tests/test_harness_profile.py
 tests/test_context_view.py
