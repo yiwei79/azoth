@@ -104,7 +104,7 @@ The public story therefore has three evidence bands:
 
 ### Portable proof
 
-The extracted `v0.3.0-rc.3` candidate implements and tests deterministic
+The extracted `v0.3.0-rc.4` candidate implements and tests deterministic
 effect-aware routing, compact source-referenced context, explicit authority and
 stopping state, and a four-case no-write rehearsal. Thirty portable tests cover
 that selected surface.
@@ -189,7 +189,7 @@ develops the broader model.
 
 The thesis relies on Git for revision history rather than adding another
 changelog. Installer completeness, cross-host parity, package distribution,
-and production adoption remain outside the `v0.3.0-rc.3` validation
+and production adoption remain outside the `v0.3.0-rc.4` validation
 boundary. Existing tags remain immutable. Publication requires review of the
 exact extracted tree and explicit human approval for its public commit, tag,
 push, and release.
