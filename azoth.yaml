@@ -5,7 +5,7 @@ description: An inspectable toolkit for governed AI-assisted software delivery
 release_channel: preview
 provenance:
   source_delivery_version: 0.2.1.0
-  source_revision: f08bfde2a3665c0f16ca3cc6a847a99a242c83e5
+  source_revision: c3c4d834eaa009d6aaef002d7a43866273db7e17
 scope:
   mode: product
   is_development_workshop: false
